@@ -28,7 +28,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ghost:
         "hover:bg-zinc-800/60 text-zinc-400 hover:text-zinc-100 active:scale-[0.98]",
       link: "text-zinc-300 underline-offset-4 hover:underline",
-      glow: "bg-emerald-500 text-zinc-950 font-semibold shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 hover:shadow-emerald-500/40 active:scale-[0.98]",
+      glow: "bg-violet-600 text-white font-semibold shadow-lg shadow-violet-600/30 hover:bg-violet-500 hover:shadow-violet-600/50 active:scale-[0.98] transition-all",
     };
 
     const sizes = {

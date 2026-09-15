@@ -56,11 +56,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 py-8 relative">
       {/* Background ambient lighting */}
-      <div className="absolute h-80 w-80 rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute h-80 w-80 rounded-full bg-violet-600/15 blur-[130px] pointer-events-none" />
 
-      <Card className="w-full max-w-md border-zinc-800/90 bg-zinc-950/80 backdrop-blur-2xl shadow-2xl relative z-10">
+      <Card className="w-full max-w-md border-zinc-800/90 bg-zinc-950/80 backdrop-blur-2xl shadow-2xl shadow-violet-950/40 relative z-10">
         <CardHeader className="text-center pb-4">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-zinc-950 shadow-lg shadow-emerald-500/20 mb-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-lg shadow-violet-600/30 mb-3">
             <Zap className="h-6 w-6 fill-current" />
           </div>
           <CardTitle className="text-2xl font-bold text-white tracking-tight">
@@ -99,7 +99,7 @@ export default function LoginPage() {
                       name="email"
                       required
                       placeholder="tu@correo.com"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                       name="password"
                       required
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export default function LoginPage() {
                       name="fullName"
                       required
                       placeholder="Ej: Bruno Silva"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -161,7 +161,7 @@ export default function LoginPage() {
                       name="birthDate"
                       required
                       defaultValue="1995-06-15"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                   <p className="text-[10px] text-zinc-500 mt-1">
@@ -180,7 +180,7 @@ export default function LoginPage() {
                       name="email"
                       required
                       placeholder="tu@correo.com"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                       required
                       minLength={6}
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -217,10 +217,10 @@ export default function LoginPage() {
           {/* Quick guest mode link */}
           <div className="pt-2 text-center border-t border-zinc-800/60">
             <Link
-              href="/"
-              className="text-xs text-zinc-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-1"
+              href="/dashboard"
+              className="text-xs text-zinc-400 hover:text-violet-400 transition-colors inline-flex items-center gap-1"
             >
-              Explorar en modo demostración <ArrowRight className="h-3 w-3" />
+              Explorar dashboard en modo demostración <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         </CardContent>

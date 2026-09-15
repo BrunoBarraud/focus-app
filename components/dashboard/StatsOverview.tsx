@@ -29,30 +29,30 @@ export function StatsOverview({ habits }: StatsOverviewProps) {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
       {/* 3 Metric Cards */}
-      <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
         {/* Metric 1 */}
-        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700/60 transition-all">
-          <CardContent className="p-5 flex items-center justify-between">
+        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-violet-500/30 transition-all">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-400">Progreso Global de Hoy</p>
               <h3 className="text-2xl sm:text-3xl font-bold text-white mt-1">
                 {globalRate}%
               </h3>
-              <p className="text-[11px] text-emerald-400 flex items-center gap-1 mt-1">
+              <p className="text-[11px] text-violet-400 flex items-center gap-1 mt-1">
                 <TrendingUp className="h-3 w-3" /> {totalCompletionsToday} de {habits.length} hábitos listos
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="h-6 w-6" />
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-sm">
+              <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </CardContent>
         </Card>
 
         {/* Metric 2 */}
-        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700/60 transition-all">
-          <CardContent className="p-5 flex items-center justify-between">
+        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-amber-500/30 transition-all">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-400">Racha Récord Activa</p>
               <h3 className="text-2xl sm:text-3xl font-bold text-amber-400 mt-1 flex items-center gap-1.5">
@@ -62,29 +62,29 @@ export function StatsOverview({ habits }: StatsOverviewProps) {
                 Consistencia inquebrantable
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Flame className="h-6 w-6 fill-amber-500" />
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm">
+              <Flame className="h-5 w-5 sm:h-6 sm:w-6 fill-amber-500" />
             </div>
           </CardContent>
         </Card>
 
         {/* Metric 3 */}
-        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700/60 transition-all">
-          <CardContent className="p-5 flex items-center justify-between">
+        <Card className="border-zinc-800/80 bg-zinc-900/40 hover:border-violet-500/30 transition-all">
+          <CardContent className="p-4 sm:p-5 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-400">Completados Este Mes</p>
-              <h3 className="text-2xl sm:text-3xl font-bold text-teal-400 mt-1">
+              <h3 className="text-2xl sm:text-3xl font-bold text-violet-400 mt-1">
                 {totalCompletedThisMonth}{" "}
                 <span className="text-sm font-normal text-zinc-400">registros</span>
               </h3>
-              <p className="text-[11px] text-teal-400 flex items-center gap-1 mt-1">
+              <p className="text-[11px] text-violet-300 flex items-center gap-1 mt-1">
                 {habits.length > 0
                   ? `${habits.length} hábito${habits.length > 1 ? "s" : ""} activo${habits.length > 1 ? "s" : ""}`
                   : "Sin hábitos todavía"}
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
-              <Trophy className="h-6 w-6" />
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-sm">
+              <Trophy className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
           </CardContent>
         </Card>
@@ -104,7 +104,7 @@ export function StatsOverview({ habits }: StatsOverviewProps) {
           </div>
           <Link
             href="/habitos"
-            className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors group"
+            className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors group"
           >
             Ver matriz completa
             <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -117,7 +117,7 @@ export function StatsOverview({ habits }: StatsOverviewProps) {
               <p className="text-xs text-zinc-400">Aún no tienes hábitos registrados en tu cuenta.</p>
               <Link
                 href="/habitos"
-                className="inline-flex items-center gap-1 text-xs text-emerald-400 hover:underline mt-2 font-medium"
+                className="inline-flex items-center gap-1 text-xs text-violet-400 hover:underline mt-2 font-medium"
               >
                 + Crear mi primer hábito en Supabase
               </Link>
@@ -160,7 +160,7 @@ export function StatsOverview({ habits }: StatsOverviewProps) {
                 <Progress
                   value={progressPercent}
                   className="h-1.5 bg-zinc-800/90"
-                  indicatorClassName="bg-gradient-to-r from-amber-500 to-emerald-400"
+                  indicatorClassName="bg-gradient-to-r from-amber-500 via-violet-500 to-fuchsia-400"
                 />
 
                 <div className="flex justify-between items-center text-[10px] text-zinc-400 mt-1.5">

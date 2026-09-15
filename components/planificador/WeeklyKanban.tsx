@@ -22,9 +22,9 @@ interface WeeklyKanbanProps {
   initialTasks: PlannerTask[];
 }
 
-const WEEK_COLUMNS: { day: WeekDay; label: string; full: string; isToday?: boolean }[] = [
+const WEEK_DAYS_BASE: { day: WeekDay; label: string; full: string }[] = [
   { day: "L", label: "L", full: "Lunes" },
-  { day: "M", label: "M", full: "Martes", isToday: true }, // Marcado como hoy
+  { day: "M", label: "M", full: "Martes" },
   { day: "X", label: "X", full: "Miércoles" },
   { day: "J", label: "J", full: "Jueves" },
   { day: "V", label: "V", full: "Viernes" },
@@ -32,10 +32,35 @@ const WEEK_COLUMNS: { day: WeekDay; label: string; full: string; isToday?: boole
   { day: "D", label: "D", full: "Domingo" },
 ];
 
+const DAY_INDEX_MAP: Record<number, WeekDay> = {
+  0: "D",
+  1: "L",
+  2: "M",
+  3: "X",
+  4: "J",
+  5: "V",
+  6: "S",
+};
+
 export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
   const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [activeDay, setActiveDay] = React.useState<WeekDay>("M");
+
+  // Calcular dinámicamente el día real de hoy
+  const todayDayKey: WeekDay = React.useMemo(() => {
+    const dayIndex = new Date().getDay();
+    return DAY_INDEX_MAP[dayIndex] || "L";
+  }, []);
+
+  const [activeDay, setActiveDay] = React.useState<WeekDay>(todayDayKey);
+
+  // Columnas con cálculo dinámico de isToday
+  const weekColumns = React.useMemo(() => {
+    return WEEK_DAYS_BASE.map((col) => ({
+      ...col,
+      isToday: col.day === todayDayKey,
+    }));
+  }, [todayDayKey]);
 
   // Form states
   const [title, setTitle] = React.useState("");
@@ -87,13 +112,13 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
             <Calendar className="h-3.5 w-3.5" /> Tablero Horizontal L-D
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             Planificador Semanal
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-xs sm:text-sm text-zinc-400">
             Estructura tus 7 días para proteger tus bloques de deep work y descanso.
           </p>
         </div>
@@ -101,16 +126,16 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
             <span className="text-zinc-400">Progreso semanal: </span>
-            <strong className="text-emerald-400 font-bold">
+            <strong className="text-violet-400 font-bold">
               {completedTasks}/{totalTasks} completadas
             </strong>
           </div>
         </div>
       </div>
 
-      {/* Horizontal Scrollable Kanban Columns */}
-      <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x min-h-[550px]">
-        {WEEK_COLUMNS.map((col) => {
+      {/* Horizontal Scrollable Kanban Columns - Responsivo para 1366x768 */}
+      <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x min-h-[420px]">
+        {weekColumns.map((col) => {
           const columnTasks = tasks.filter((t) => t.day === col.day);
           const colCompleted = columnTasks.filter((t) => t.completed).length;
 
@@ -118,20 +143,20 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
             <div
               key={col.day}
               className={cn(
-                "flex-shrink-0 w-80 rounded-2xl flex flex-col transition-all border snap-start",
+                "flex-shrink-0 w-72 sm:w-76 rounded-2xl flex flex-col transition-all border snap-start",
                 col.isToday
-                  ? "bg-gradient-to-b from-zinc-900/90 to-zinc-950 border-emerald-500/30 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                  ? "bg-gradient-to-b from-zinc-900/90 to-zinc-950 border-violet-500/40 shadow-lg shadow-violet-500/10 ring-1 ring-violet-500/20"
                   : "bg-zinc-950/70 border-zinc-800/80"
               )}
             >
               {/* Column Header */}
-              <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between">
+              <div className="p-3.5 border-b border-zinc-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-xl font-bold text-xs shadow-sm",
+                      "flex h-7 w-7 items-center justify-center rounded-lg font-bold text-xs shadow-sm",
                       col.isToday
-                        ? "bg-emerald-500 text-zinc-950"
+                        ? "bg-violet-600 text-white shadow-violet-600/30"
                         : "bg-zinc-800 text-zinc-300"
                     )}
                   >
@@ -143,7 +168,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                         {col.full}
                       </span>
                       {col.isToday && (
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        <span className="text-[10px] uppercase font-bold text-violet-300 bg-violet-500/15 px-1.5 py-0.5 rounded border border-violet-500/30">
                           Hoy
                         </span>
                       )}
@@ -158,15 +183,15 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                   onClick={() => openAddModal(col.day)}
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-zinc-400 hover:text-white"
+                  className="h-7 w-7 text-zinc-400 hover:text-white hover:bg-zinc-800/60"
                   title={`Añadir tarea a ${col.full}`}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
 
-              {/* Column Task Cards */}
-              <div className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[580px]">
+              {/* Column Task Cards - Altura ajustada para notebooks 768p */}
+              <div className="p-2.5 space-y-2.5 flex-1 overflow-y-auto max-h-[380px] sm:max-h-[460px]">
                 {columnTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center text-zinc-400 border border-dashed border-zinc-800/60 rounded-xl m-1">
                     <p className="text-xs">Sin tareas asignadas</p>
@@ -269,7 +294,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       <Dialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        title={`Añadir Tarea para el ${WEEK_COLUMNS.find((w) => w.day === activeDay)?.full || activeDay}`}
+        title={`Añadir Tarea para el ${weekColumns.find((w) => w.day === activeDay)?.full || activeDay}`}
         description="Define una acción concreta con estimación realista de tiempo."
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
@@ -308,9 +333,9 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
               <select
                 value={activeDay}
                 onChange={(e) => setActiveDay(e.target.value as WeekDay)}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
               >
-                {WEEK_COLUMNS.map((w) => (
+                {weekColumns.map((w) => (
                   <option key={w.day} value={w.day}>
                     {w.full}
                   </option>

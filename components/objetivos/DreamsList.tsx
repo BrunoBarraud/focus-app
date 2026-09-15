@@ -74,7 +74,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 uppercase tracking-widest mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
             <Sparkles className="h-3.5 w-3.5" /> Bucket List de Vida
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
@@ -88,7 +88,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
         <div className="flex items-center gap-2.5">
           <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
             <span className="text-zinc-400">Cumplidos: </span>
-            <strong className="text-emerald-400">{completedCount}</strong> de {dreams.length}
+            <strong className="text-violet-400">{completedCount}</strong> de {dreams.length}
           </div>
 
           <Button
@@ -116,7 +116,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
             className={cn(
               "px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer",
               filter === item.id
-                ? "bg-zinc-800 text-white font-semibold border border-zinc-700 shadow-sm"
+                ? "bg-violet-600 text-white font-semibold border border-violet-500/40 shadow-sm shadow-violet-600/30"
                 : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
             )}
           >

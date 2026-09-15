@@ -41,7 +41,7 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
       <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-teal-400 uppercase tracking-widest mb-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
               <Compass className="h-3.5 w-3.5" /> Balance Integral
             </div>
             <CardTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
@@ -53,7 +53,7 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
           </div>
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3.5 py-2 flex items-center gap-2 self-start sm:self-auto">
-            <Activity className="h-4 w-4 text-emerald-400" />
+            <Activity className="h-4 w-4 text-violet-400" />
             <div>
               <p className="text-[10px] text-zinc-400 uppercase font-semibold">
                 Equilibrio Global
@@ -86,8 +86,8 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                 <Radar
                   name="Puntuación"
                   dataKey="score"
-                  stroke="#10b981"
-                  fill="#10b981"
+                  stroke="#8b5cf6"
+                  fill="#8b5cf6"
                   fillOpacity={0.35}
                 />
                 <Tooltip
@@ -97,7 +97,7 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                       return (
                         <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-2.5 shadow-xl text-xs">
                           <p className="font-bold text-white">{data.subject}</p>
-                          <p className="text-emerald-400 font-semibold mt-0.5">
+                          <p className="text-violet-400 font-semibold mt-0.5">
                             Puntaje: {data.score} / 10
                           </p>
                           <p className="text-zinc-400 text-[10px] mt-1 max-w-[180px]">
@@ -124,11 +124,11 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
           {areas.map((area) => (
             <div
               key={area.subject}
-              className="rounded-lg p-2.5 bg-zinc-900/40 border border-zinc-800/60 hover:border-zinc-700/60 transition-colors"
+              className="rounded-lg p-2.5 bg-zinc-900/40 border border-zinc-800/60 hover:border-violet-500/30 transition-colors"
             >
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-medium text-zinc-200">{area.subject}</span>
-                <span className="font-mono font-bold text-emerald-400">
+                <span className="font-mono font-bold text-violet-400">
                   {area.score}/10
                 </span>
               </div>
@@ -141,7 +141,7 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                 onChange={(e) =>
                   handleScoreChange(area.subject, parseFloat(e.target.value))
                 }
-                className="w-full accent-emerald-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                className="w-full accent-violet-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
               />
             </div>
           ))}

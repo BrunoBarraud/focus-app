@@ -31,8 +31,8 @@ export function MobileNav() {
   return (
     <>
       <header className="md:hidden sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-zinc-800/80 bg-zinc-950/90 px-4 backdrop-blur-lg">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 text-zinc-950 shadow-sm shadow-emerald-500/20">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-sm shadow-violet-600/30">
             <Zap className="h-4 w-4 fill-current" />
           </div>
           <span className="font-bold tracking-tight text-base text-white">
@@ -53,12 +53,12 @@ export function MobileNav() {
       <Sheet open={open} onOpenChange={setOpen} side="left">
         <div className="flex flex-col h-full">
           <div className="flex items-center gap-2.5 pb-6 border-b border-zinc-800/80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 text-zinc-950">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 text-white">
               <Zap className="h-4 w-4 fill-current" />
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-base text-white">FOCUS</span>
-              <span className="text-[10px] text-zinc-500">Productividad</span>
+              <span className="text-[10px] text-zinc-400">Productividad</span>
             </div>
           </div>
 

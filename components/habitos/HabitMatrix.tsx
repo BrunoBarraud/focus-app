@@ -116,13 +116,13 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-widest mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
             <Calendar className="h-3.5 w-3.5" /> Matriz Mensual
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             Panel de Hábitos
           </h1>
-          <p className="text-sm text-zinc-400">
+          <p className="text-xs sm:text-sm text-zinc-400">
             Control de consistencia diaria. La excelencia es un hábito, no un acto.
           </p>
         </div>
@@ -135,7 +135,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
               className={cn(
                 "px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer",
                 selectedCategory === "all"
-                  ? "bg-zinc-800 text-white font-semibold"
+                  ? "bg-violet-600 text-white font-semibold shadow-sm shadow-violet-600/30"
                   : "text-zinc-400 hover:text-zinc-200"
               )}
             >
@@ -149,7 +149,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                   className={cn(
                     "px-2.5 py-1 text-xs font-medium rounded-md transition-all capitalize cursor-pointer",
                     selectedCategory === cat
-                      ? "bg-zinc-800 text-white font-semibold"
+                      ? "bg-violet-600 text-white font-semibold shadow-sm shadow-violet-600/30"
                       : "text-zinc-400 hover:text-zinc-200"
                   )}
                 >
@@ -173,28 +173,28 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
       {/* Interactive Full-Width Matrix Card */}
       <Card className="border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl shadow-xl overflow-hidden">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[900px]">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="border-b border-zinc-800/80 bg-zinc-900/50 text-zinc-400 text-[11px] font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4 sticky left-0 z-20 bg-zinc-900 min-w-[240px]">
+                  <th className="py-3 px-3 sm:px-4 sticky left-0 z-20 bg-zinc-900 min-w-[200px] sm:min-w-[240px]">
                     Hábito & Categoría
                   </th>
-                  <th className="py-3 px-3 text-center min-w-[80px]">Racha</th>
+                  <th className="py-3 px-2 sm:px-3 text-center min-w-[70px] sm:min-w-[80px]">Racha</th>
                   {daysArray.map((d) => (
                     <th
                       key={d}
                       className={cn(
-                        "py-2.5 px-1 text-center font-mono text-xs min-w-[32px]",
+                        "py-2 px-0.5 sm:px-1 text-center font-mono text-[11px] sm:text-xs min-w-[28px] sm:min-w-[32px]",
                         d === currentDay
-                          ? "bg-emerald-500/10 text-emerald-400 font-bold border-x border-emerald-500/30"
+                          ? "bg-violet-500/15 text-violet-300 font-bold border-x border-violet-500/30"
                           : "text-zinc-400"
                       )}
                     >
                       <span>{d}</span>
                     </th>
                   ))}
-                  <th className="py-3 px-4 text-right min-w-[90px]">Progreso</th>
+                  <th className="py-3 px-3 sm:px-4 text-right min-w-[80px] sm:min-w-[90px]">Progreso</th>
                 </tr>
               </thead>
 
@@ -214,7 +214,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                       <button
                         type="button"
                         onClick={() => setIsAddOpen(true)}
-                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-semibold hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-300 border border-violet-500/30 text-xs font-semibold hover:bg-violet-500/20 transition-colors cursor-pointer"
                       >
                         <Plus className="h-3.5 w-3.5" /> Crear mi primer hábito
                       </button>
@@ -235,9 +235,9 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                       className="hover:bg-zinc-900/40 transition-colors group"
                     >
                       {/* Habit Name & Category (Fixed Left Column) */}
-                      <td className="py-3.5 px-4 sticky left-0 z-10 bg-zinc-950/95 backdrop-blur-md border-r border-zinc-800/60">
+                      <td className="py-3 px-3 sm:px-4 sticky left-0 z-10 bg-zinc-950/95 backdrop-blur-md border-r border-zinc-800/60">
                         <div className="flex flex-col">
-                          <span className="font-semibold text-zinc-100 group-hover:text-emerald-400 transition-colors">
+                          <span className="font-semibold text-zinc-100 group-hover:text-violet-300 transition-colors">
                             {habit.name}
                           </span>
                           <div className="flex items-center gap-2 mt-1">
@@ -258,7 +258,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                       </td>
 
                       {/* Streak Badge */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-3 px-2 sm:px-3 text-center">
                         <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                           <Flame className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
                           {habit.streak}
@@ -277,8 +277,8 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                           <td
                             key={day}
                             className={cn(
-                              "p-1 text-center",
-                              isToday && "bg-emerald-500/5 border-x border-emerald-500/20"
+                              "p-0.5 sm:p-1 text-center",
+                              isToday && "bg-violet-500/5 border-x border-violet-500/20"
                             )}
                           >
                             <button
@@ -287,13 +287,13 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                               disabled={isPending}
                               title={`Día ${day}: ${isDone ? "Completado" : isFuture ? "Futuro" : "Pendiente"}`}
                               className={cn(
-                                "h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-150 mx-auto select-none",
+                                "h-6 w-6 sm:h-7 sm:w-7 rounded-md sm:rounded-lg flex items-center justify-center transition-all duration-150 mx-auto select-none",
                                 isPending && "opacity-50 cursor-wait",
                                 !isPending && !isFuture && "cursor-pointer",
                                 isFuture && "cursor-default opacity-30",
                                 isDone
                                   ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm shadow-emerald-500/30"
-                                  : "bg-zinc-900 border border-zinc-800/90 text-transparent hover:border-zinc-600 hover:bg-zinc-800/80 active:scale-90"
+                                  : "bg-zinc-900 border border-zinc-800/90 text-transparent hover:border-violet-500/50 hover:bg-zinc-800/80 active:scale-90"
                               )}
                             >
                               {isDone && <Check className="h-3.5 w-3.5 stroke-[3]" />}

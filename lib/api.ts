@@ -111,7 +111,7 @@ export async function getLifeExpectancyStats(): Promise<LifeExpectancyStats> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const birthDate = data?.birth_date || "1995-01-01";
+  const birthDate = data?.birth_date || user.user_metadata?.birth_date || "1995-01-01";
   const targetAge = data?.target_age || 80;
 
   return calculateMementoMori(birthDate, targetAge);

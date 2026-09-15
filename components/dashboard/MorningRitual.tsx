@@ -91,14 +91,14 @@ function EditableField({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={saving}
-            className="flex-1 bg-zinc-950 border border-emerald-500/50 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+            className="flex-1 bg-zinc-950 border border-violet-500/50 rounded-lg px-3 py-1.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
           />
           <button
             onClick={handleSave}
             disabled={saving}
-            className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+            className="p-1.5 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-400 hover:bg-violet-500/20 transition-colors cursor-pointer"
           >
-            {saving ? <span className="h-3.5 w-3.5 block rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            {saving ? <span className="h-3.5 w-3.5 block rounded-full border-2 border-violet-400 border-t-transparent animate-spin" /> : <Check className="h-3.5 w-3.5" />}
           </button>
           <button
             onClick={() => { setEditing(false); setDraft(value); }}
@@ -150,18 +150,18 @@ export function MorningRitual({ initialData }: MorningRitualProps) {
   return (
     <Card className="border-zinc-800/80 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-900/60 shadow-lg relative overflow-hidden group">
       {/* Subtle top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/60 via-emerald-500/60 to-teal-400/60" />
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-600/70 via-fuchsia-500/60 to-indigo-500/60" />
 
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-inner">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-inner">
               <SunMedium className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
                 Ritual Matutino
-                <Badge variant="warning" className="text-[10px] py-0 px-2 uppercase font-semibold">
+                <Badge variant="outline" className="text-[10px] py-0 px-2 uppercase font-semibold text-violet-300 border-violet-500/30 bg-violet-500/10">
                   Hoy
                 </Badge>
               </CardTitle>
@@ -203,7 +203,7 @@ export function MorningRitual({ initialData }: MorningRitualProps) {
             value={data.mission}
             onSave={handleSaveMission}
             label="Misión de Hoy"
-            color="text-emerald-400"
+            color="text-violet-400"
             icon={Target}
           />
           <EditableField

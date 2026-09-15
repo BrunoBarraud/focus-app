@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Rutas que requieren autenticación
 const PROTECTED_ROUTES = [
+  "/dashboard",
   "/habitos",
   "/planificador",
   "/objetivos",
@@ -55,7 +56,7 @@ export async function proxy(request: NextRequest) {
   // Redirigir al dashboard si ya está logueado e intenta ir a /login
   if (pathname === "/login" && user) {
     const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/";
+    dashboardUrl.pathname = "/dashboard";
     return NextResponse.redirect(dashboardUrl);
   }
 

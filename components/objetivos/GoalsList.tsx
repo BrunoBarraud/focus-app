@@ -48,7 +48,7 @@ export function GoalsList({ category, initialGoals }: GoalsListProps) {
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
                     <Target className="h-4 w-4" />
                   </div>
                   <div>
@@ -56,18 +56,18 @@ export function GoalsList({ category, initialGoals }: GoalsListProps) {
                       {goal.title}
                     </CardTitle>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-[10px] py-0 px-2">
+                      <Badge variant="outline" className="text-[10px] py-0 px-2 border-violet-500/30 text-violet-300">
                         {goal.timeframe}
                       </Badge>
                       <span className="text-xs text-zinc-400 flex items-center gap-1">
-                        <Calendar className="h-3 w-3" /> Meta: {goal.targetDate}
+                        <Calendar className="h-3 w-3 text-violet-400" /> Meta: {goal.targetDate}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 self-end sm:self-auto">
-                  <span className="font-mono text-sm font-bold text-emerald-400">
+                  <span className="font-mono text-sm font-bold text-violet-400">
                     {goal.progress}%
                   </span>
                 </div>
@@ -78,7 +78,7 @@ export function GoalsList({ category, initialGoals }: GoalsListProps) {
               <Progress
                 value={goal.progress}
                 className="h-2 bg-zinc-800/80"
-                indicatorClassName="bg-gradient-to-r from-emerald-500 to-teal-400"
+                indicatorClassName="bg-gradient-to-r from-violet-600 via-fuchsia-400 to-indigo-400"
               />
 
               {/* Milestones checklist */}

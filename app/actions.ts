@@ -25,8 +25,9 @@ export async function loginAction(formData: FormData) {
     return { error: error.message };
   }
 
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }
 
 /**
@@ -96,8 +97,9 @@ export async function signupAction(formData: FormData) {
     ]);
   }
 
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }
 
 /**
@@ -203,6 +205,56 @@ export async function updateUserSettings(data: {
     throw new Error(`Error al actualizar configuración: ${error.message}`);
   }
 
+  revalidatePath("/dashboard");
   revalidatePath("/");
   return { success: true };
 }
+
+/**
+ * Server Action: Actualizar Perfil Completo (Nombre, Fecha de Nacimiento y Expectativa de Vida)
+ */
+export async function updateUserProfile(data: {
+  fullName?: string;
+  birthDate?: string;
+  targetAge?: number;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Usuario no autenticado");
+  }
+
+  // 1. Actualizar metadata de auth si viene fullName o birthDate
+  if (data.fullName || data.birthDate) {
+    await supabase.auth.updateUser({
+      data: {
+        ...(data.fullName ? { full_name: data.fullName } : {}),
+        ...(data.birthDate ? { birth_date: data.birthDate } : {}),
+      },
+    });
+  }
+
+  // 2. Actualizar user_settings
+  const updates: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+  if (data.birthDate) updates.birth_date = data.birthDate;
+  if (data.targetAge) updates.target_age = data.targetAge;
+
+  const { error } = await supabase.from("user_settings").upsert({
+    user_id: user.id,
+    ...updates,
+  });
+
+  if (error) {
+    throw new Error(`Error al actualizar configuración de perfil: ${error.message}`);
+  }
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
