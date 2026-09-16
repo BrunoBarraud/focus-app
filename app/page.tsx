@@ -177,7 +177,7 @@ export default async function HomePage() {
         `)
         .eq("user_id", user.id);
 
-      if (userHabits && userHabits.length > 0) {
+      if (userHabits) {
         const now = new Date();
         const year = now.getFullYear();
         const monthStr = String(now.getMonth() + 1).padStart(2, "0");
@@ -221,7 +221,7 @@ export default async function HomePage() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
-      if (userTasks && userTasks.length > 0) {
+      if (userTasks) {
         tasksData = userTasks.map((t: any) => ({
           id: t.id,
           title: t.title,
@@ -241,7 +241,7 @@ export default async function HomePage() {
         .eq("user_id", user.id)
         .in("type", ["personal", "profesional"]);
 
-      if (userGoals && userGoals.length > 0) {
+      if (userGoals) {
         goalsData = userGoals.map((g: any) => ({
           id: g.id,
           title: g.title,
