@@ -229,6 +229,22 @@ export async function addHabit(
   return getHabits();
 }
 
+export async function updateHabitTitle(habitId: string, newTitle: string): Promise<Habit[]> {
+  const { supabase, user } = await getCurrentUser();
+  if (user) {
+    await supabase.from("habits").update({ title: newTitle }).eq("id", habitId);
+  }
+  return getHabits();
+}
+
+export async function deleteHabit(habitId: string): Promise<Habit[]> {
+  const { supabase, user } = await getCurrentUser();
+  if (user) {
+    await supabase.from("habits").delete().eq("id", habitId);
+  }
+  return getHabits();
+}
+
 // 4. Planificador Semanal (Supabase) — filtra por semana actual
 export async function getWeeklyTasks(): Promise<PlannerTask[]> {
   const { supabase, user } = await getCurrentUser();
@@ -297,6 +313,24 @@ export async function deleteTask(taskId: string): Promise<PlannerTask[]> {
   return getWeeklyTasks();
 }
 
+export async function updateTask(
+  taskId: string,
+  updates: Partial<PlannerTask>
+): Promise<PlannerTask[]> {
+  const { supabase } = await getCurrentUser();
+  const dbUpdates: Record<string, any> = {};
+  if (updates.title !== undefined) dbUpdates.title = updates.title;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.day !== undefined) dbUpdates.day_of_week = updates.day;
+  if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+  if (updates.estimatedMinutes !== undefined) dbUpdates.estimated_minutes = updates.estimatedMinutes;
+  if (updates.completed !== undefined) dbUpdates.status = updates.completed ? "completed" : "pending";
+  if (updates.tag !== undefined) dbUpdates.tag = updates.tag;
+
+  await supabase.from("tasks").update(dbUpdates).eq("id", taskId);
+  return getWeeklyTasks();
+}
+
 // 5. Objetivos y Metas (Supabase)
 export async function getGoals(): Promise<Goal[]> {
   const { supabase, user } = await getCurrentUser();
@@ -345,6 +379,43 @@ export async function toggleMilestone(
       .eq("id", goalId);
   }
 
+  return getGoals();
+}
+
+export async function addGoal(
+  goal: Omit<Goal, "id" | "milestones">
+): Promise<Goal[]> {
+  const { supabase, user } = await getCurrentUser();
+  if (!user) throw new Error("Debes iniciar sesión");
+
+  await supabase.from("goals").insert({
+    user_id: user.id,
+    title: goal.title,
+    type: goal.category === "professional" ? "profesional" : "personal",
+    progress: goal.progress || 0,
+    target_date: goal.targetDate || "Fin de año",
+    timeframe: goal.timeframe || "Anual",
+  });
+
+  return getGoals();
+}
+
+export async function deleteGoal(goalId: string): Promise<Goal[]> {
+  const { supabase, user } = await getCurrentUser();
+  if (user) {
+    await supabase.from("goals").delete().eq("id", goalId);
+  }
+  return getGoals();
+}
+
+export async function updateGoalProgress(
+  goalId: string,
+  progress: number
+): Promise<Goal[]> {
+  const { supabase, user } = await getCurrentUser();
+  if (user) {
+    await supabase.from("goals").update({ progress }).eq("id", goalId);
+  }
   return getGoals();
 }
 

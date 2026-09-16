@@ -1,28 +1,132 @@
 import * as React from "react";
 import { createClient } from "@/utils/supabase/server";
-import { MorningRitual } from "@/components/dashboard/MorningRitual";
-import { StatsOverview } from "@/components/dashboard/StatsOverview";
-import { MementoMori } from "@/components/dashboard/MementoMori";
-import { calculateMementoMori, calculateStreak, getDaysInMonth } from "@/lib/utils";
-import { Sparkles, ArrowRight, UserCheck, Timer } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Habit, MorningRitual as MorningRitualType, LifeExpectancyStats, HabitCategory } from "@/lib/types";
+import { DashboardInteractive } from "@/components/dashboard/DashboardInteractive";
+import { Habit, PlannerTask, Goal, MorningRitual, HabitCategory, WeekDay } from "@/lib/types";
+import { calculateStreak, getDaysInMonth } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  let lifeStats: LifeExpectancyStats = calculateMementoMori("1995-01-01", 80);
-  let ritualData: MorningRitualType = {
+  let habitsData: Habit[] = [
+    {
+      id: "h-1",
+      name: "Ejercicios en Casa",
+      category: "cuerpo",
+      streak: 5,
+      bestStreak: 12,
+      monthlyTargetDays: 15,
+      color: "#10b981",
+      completedDays: { 1: true, 2: true, 3: true, 14: true, 15: true, 16: true },
+    },
+    {
+      id: "h-2",
+      name: "Deep Work (2h sin distracciones)",
+      category: "trabajo",
+      streak: 8,
+      bestStreak: 14,
+      monthlyTargetDays: 22,
+      color: "#3b82f6",
+      completedDays: { 1: true, 2: true, 3: true, 7: true, 8: true, 9: true, 14: true, 15: true, 16: true },
+    },
+    {
+      id: "h-3",
+      name: "Lectura de No Ficción (20m)",
+      category: "mente",
+      streak: 3,
+      bestStreak: 18,
+      monthlyTargetDays: 25,
+      color: "#8b5cf6",
+      completedDays: { 14: true, 15: true, 16: true },
+    },
+    {
+      id: "h-4",
+      name: "Meditación & Gratitud",
+      category: "espiritu",
+      streak: 12,
+      bestStreak: 20,
+      monthlyTargetDays: 20,
+      color: "#f59e0b",
+      completedDays: { 1: true, 2: true, 5: true, 6: true, 12: true, 13: true, 14: true, 15: true, 16: true },
+    },
+  ];
+
+  let tasksData: PlannerTask[] = [
+    {
+      id: "t-1",
+      title: "Revisión estratégica de objetivos del trimestre",
+      day: "X",
+      priority: "high",
+      estimatedMinutes: 45,
+      completed: false,
+      tag: "Estrategia",
+    },
+    {
+      id: "t-2",
+      title: "Bloque de código y refactorización UI",
+      day: "X",
+      priority: "high",
+      estimatedMinutes: 60,
+      completed: true,
+      tag: "Desarrollo",
+    },
+    {
+      id: "t-3",
+      title: "Planificación semanal de sprint y métricas",
+      day: "L",
+      priority: "medium",
+      estimatedMinutes: 30,
+      completed: true,
+      tag: "Organización",
+    },
+    {
+      id: "t-4",
+      title: "Caminata de desconexión sin pantalla",
+      day: "X",
+      priority: "low",
+      estimatedMinutes: 30,
+      completed: false,
+      tag: "Salud",
+    },
+  ];
+
+  let goalsData: Goal[] = [
+    {
+      id: "g-1",
+      title: "Dominar desarrollo fullstack con Next.js y Supabase",
+      category: "professional",
+      progress: 75,
+      targetDate: "30 Nov",
+      timeframe: "Q3",
+      milestones: [
+        { id: "m-1", title: "Completar arquitectura y esquemas RLS", completed: true },
+        { id: "m-2", title: "Diseño Apple HIG y microinteracciones", completed: true },
+        { id: "m-3", title: "Pruebas de estrés y despliegue final", completed: false },
+      ],
+    },
+    {
+      id: "g-2",
+      title: "Entrenamiento de fuerza 4 veces por semana",
+      category: "personal",
+      progress: 60,
+      targetDate: "Fin de año",
+      timeframe: "Anual",
+      milestones: [
+        { id: "m-4", title: "Rutina estructurada de empuje/tracción/pierna", completed: true },
+        { id: "m-5", title: "Alcanzar 15 días consecutivos de registro", completed: false },
+      ],
+    },
+  ];
+
+  let ritualData: MorningRitual = {
     date: new Date().toLocaleDateString("es-ES", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     }),
-    mission: "Define tu misión principal de hoy.",
-    pillar: "Disciplina & Claridad",
-    frog: "Identifica el sapo más importante del día.",
+    mission: "Construir sistemas consistentes de enfoque y autocontrol con disciplina.",
+    pillar: "Presencia, Claridad & Autodisciplina",
+    frog: "Terminar la refactorización integral del dashboard principal.",
     energyLevel: "high",
     quote: {
       text: "No es que tengamos poco tiempo, sino que perdemos mucho.",
@@ -30,7 +134,7 @@ export default async function DashboardPage() {
     },
     completed: false,
   };
-  let habitsData: Habit[] = [];
+
   let userEmail: string | null = null;
   let userName: string = "Invitado";
 
@@ -44,31 +148,19 @@ export default async function DashboardPage() {
       userEmail = user.email || null;
       userName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
 
-      // 1. Fetch de user_settings para calcular Memento Mori y Ritual
+      // 1. Settings / Ritual
       const { data: settings } = await supabase
         .from("user_settings")
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const birthDate = settings?.birth_date || user.user_metadata?.birth_date || "1995-01-01";
-      const targetAge = settings?.target_age || 80;
-      lifeStats = calculateMementoMori(birthDate, targetAge);
+      if (settings?.daily_mission) ritualData.mission = settings.daily_mission;
+      if (settings?.daily_pillar) ritualData.pillar = settings.daily_pillar;
+      if (settings?.daily_frog) ritualData.frog = settings.daily_frog;
+      if (settings?.energy_level) ritualData.energyLevel = settings.energy_level as any;
 
-      if (settings?.daily_mission) {
-        ritualData.mission = settings.daily_mission;
-      }
-      if (settings?.daily_pillar) {
-        ritualData.pillar = settings.daily_pillar;
-      }
-      if (settings?.daily_frog) {
-        ritualData.frog = settings.daily_frog;
-      }
-      if (settings?.energy_level) {
-        ritualData.energyLevel = settings.energy_level as any;
-      }
-
-      // 2. Fetch de hábitos y logs del usuario autenticado
+      // 2. Hábitos
       const { data: userHabits } = await supabase
         .from("habits")
         .select(`
@@ -115,72 +207,66 @@ export default async function DashboardPage() {
             streak: realStreak,
             bestStreak: Math.max(realStreak, completedCount),
             monthlyTargetDays: h.monthly_target_days || 25,
-            color: h.color || "#8b5cf6",
+            color: h.color || "#10b981",
             completedDays: completedMap,
           };
         });
+      }
+
+      // 3. Tareas
+      const { data: userTasks } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (userTasks && userTasks.length > 0) {
+        tasksData = userTasks.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description || "",
+          day: (t.day_of_week as WeekDay) || "X",
+          priority: (t.priority as any) || "medium",
+          estimatedMinutes: t.estimated_minutes || 30,
+          completed: t.status === "completed",
+          tag: t.tag || "General",
+        }));
+      }
+
+      // 4. Objetivos
+      const { data: userGoals } = await supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("type", ["personal", "profesional"]);
+
+      if (userGoals && userGoals.length > 0) {
+        goalsData = userGoals.map((g: any) => ({
+          id: g.id,
+          title: g.title,
+          category: g.type === "profesional" ? "professional" : "personal",
+          progress: Number(g.progress) || 0,
+          targetDate: g.target_date || "Fin de año",
+          timeframe: (g.timeframe as any) || "Anual",
+          milestones: [
+            { id: `${g.id}-1`, title: "Fase 1: Planificación", completed: Number(g.progress) > 30 },
+            { id: `${g.id}-2`, title: "Fase 2: Ejecución", completed: Number(g.progress) > 70 },
+          ],
+        }));
       }
     }
   } catch (error) {
     console.warn("Aviso al consultar Supabase en DashboardPage:", error);
   }
 
-  // Saludo dinámico según la hora
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Buenos días" : hour < 20 ? "Buenas tardes" : "Buenas noches";
-
   return (
-    <div className="space-y-6 sm:space-y-8 pb-12">
-      {/* Header Greeting */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-            <Sparkles className="h-3.5 w-3.5" /> Estado Mental Óptimo
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-            {greeting}, {userName}.
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
-            {userEmail
-              ? "Cada acción de hoy es un voto por la persona que estás construyendo."
-              : "Inicia sesión para sincronizar tu progreso y guardar tus hábitos en tu cuenta privada."}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 self-start sm:self-auto">
-          {!userEmail && (
-            <Link href="/login">
-              <Button variant="outline" size="sm" className="gap-2">
-                <UserCheck className="h-4 w-4 text-violet-400" />
-                Iniciar Sesión
-              </Button>
-            </Link>
-          )}
-
-          <Link href="/enfoque">
-            <Button variant="glow" size="sm" className="gap-2">
-              <Timer className="h-4 w-4" />
-              Iniciar Bloque de Enfoque
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 1. Memento Mori dinámico desde Supabase */}
-      <section aria-labelledby="memento-mori-heading">
-        <MementoMori stats={lifeStats} />
-      </section>
-
-      {/* 2. Ritual Matutino */}
-      <section aria-labelledby="ritual-matutino-heading">
-        <MorningRitual initialData={ritualData} />
-      </section>
-
-      {/* 3. Estadísticas y Rachas de Hábitos reales */}
-      <section aria-labelledby="estadisticas-heading">
-        <StatsOverview habits={habitsData} />
-      </section>
-    </div>
+    <DashboardInteractive
+      initialHabits={habitsData}
+      initialTasks={tasksData}
+      initialGoals={goalsData}
+      initialRitual={ritualData}
+      userName={userName}
+      userEmail={userEmail}
+    />
   );
 }
