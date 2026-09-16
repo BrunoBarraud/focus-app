@@ -5,6 +5,7 @@ import { Habit, PlannerTask, Goal, MorningRitual, HabitCategory, WeekDay } from 
 import { calculateStreak, getDaysInMonth } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function HomePage() {
   let habitsData: Habit[] = [

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Goal, GoalCategory } from "@/lib/types";
-import { addGoal, deleteGoal, toggleMilestone, updateGoalProgress } from "@/lib/api";
+import { addGoalAction, deleteGoalAction, toggleMilestoneAction } from "@/app/actions";
 import {
   Target,
   User,
@@ -26,6 +26,7 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
   const [newTitle, setNewTitle] = React.useState("");
   const [newTimeframe, setNewTimeframe] = React.useState<"Q1" | "Q2" | "Q3" | "Q4" | "Anual">("Q3");
 
+  // Sincronizar estado cuando el Server Component revalida y envía datos frescos
   React.useEffect(() => {
     setGoals(initialGoals);
   }, [initialGoals]);
@@ -34,14 +35,16 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
     return goals.filter((g) => g.category === category);
   }, [goals, category]);
 
-  // Agregar meta rápida inline con Enter sin modal
+  // Agregar meta rápida inline con Server Action
   const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    const previousGoals = goals;
     const titleToSave = newTitle.trim();
+    const tempId = "temp-" + Date.now();
     const tempGoal: Goal = {
-      id: "temp-" + Date.now(),
+      id: tempId,
       title: titleToSave,
       category,
       progress: 0,
@@ -57,21 +60,32 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
     setNewTitle("");
 
     try {
-      const updated = await addGoal({
+      const res = await addGoalAction({
         title: tempGoal.title,
         category: tempGoal.category,
         progress: tempGoal.progress,
         targetDate: tempGoal.targetDate,
         timeframe: tempGoal.timeframe,
       });
-      setGoals(updated);
+
+      if (res?.error) {
+        console.error("Error al agregar meta en Supabase:", res.error);
+        setGoals(previousGoals);
+      } else if (res?.goal) {
+        setGoals((prev) =>
+          prev.map((g) => (g.id === tempId ? { ...g, id: res.goal.id } : g))
+        );
+      }
     } catch (err) {
       console.error("Error al agregar meta:", err);
+      setGoals(previousGoals);
     }
   };
 
-  // Alternar progreso o hito de la meta
+  // Alternar progreso o hito de la meta con Server Action y rollback
   const handleToggleMilestone = async (goalId: string, milestoneId: string) => {
+    const previousGoals = goals;
+
     // Optimistic progress bump
     setGoals((prev) =>
       prev.map((g) => {
@@ -88,19 +102,31 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
     );
 
     try {
-      await toggleMilestone(goalId, milestoneId);
+      const res = await toggleMilestoneAction(goalId, milestoneId);
+      if (res?.error) {
+        console.error("Error al actualizar hito:", res.error);
+        setGoals(previousGoals);
+      }
     } catch (err) {
       console.error("Error al actualizar hito:", err);
+      setGoals(previousGoals);
     }
   };
 
-  // Eliminar meta
+  // Eliminar meta con Server Action y rollback
   const handleDeleteGoal = async (goalId: string) => {
+    const previousGoals = goals;
     setGoals((prev) => prev.filter((g) => g.id !== goalId));
+
     try {
-      await deleteGoal(goalId);
+      const res = await deleteGoalAction(goalId);
+      if (res?.error) {
+        console.error("Error al eliminar meta en Supabase:", res.error);
+        setGoals(previousGoals);
+      }
     } catch (err) {
       console.error("Error al eliminar meta:", err);
+      setGoals(previousGoals);
     }
   };
 

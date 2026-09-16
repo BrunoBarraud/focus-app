@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { PlannerTask, WeekDay } from "@/lib/types";
-import { toggleTaskCompletion, addTask, deleteTask } from "@/lib/api";
+import { addTaskAction, deleteTaskAction, toggleTaskAction } from "@/app/actions";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -48,6 +48,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
   const [newTaskMinutes, setNewTaskMinutes] = React.useState(30);
   const [newTaskTag, setNewTaskTag] = React.useState("Enfoque");
 
+  // Sincronizar estado cuando el Server Component revalida
   React.useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
@@ -57,26 +58,34 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
     return tasks.filter((t) => t.day === selectedDay);
   }, [tasks, selectedDay]);
 
-  // Alternar estado de completitud optimista
+  // Alternar estado de completitud con Server Action y rollback
   const handleToggleTask = async (taskId: string) => {
+    const previousTasks = tasks;
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
     );
 
     try {
-      await toggleTaskCompletion(taskId);
+      const res = await toggleTaskAction(taskId);
+      if (res?.error) {
+        console.error("Error al actualizar tarea:", res.error);
+        setTasks(previousTasks);
+      }
     } catch (err) {
       console.error("Error al actualizar tarea:", err);
+      setTasks(previousTasks);
     }
   };
 
-  // Crear tarea inline
+  // Crear tarea inline con Server Action
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
+    const previousTasks = tasks;
+    const tempId = "temp-" + Date.now();
     const tempTask: PlannerTask = {
-      id: "temp-" + Date.now(),
+      id: tempId,
       title: newTaskTitle.trim(),
       day: selectedDay,
       priority: newTaskPriority,
@@ -89,7 +98,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
     setNewTaskTitle("");
 
     try {
-      const updated = await addTask({
+      const res = await addTaskAction({
         title: tempTask.title,
         day: tempTask.day,
         priority: tempTask.priority,
@@ -97,19 +106,35 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
         completed: false,
         tag: tempTask.tag,
       });
-      setTasks(updated);
+
+      if (res?.error) {
+        console.error("Error al añadir tarea en Supabase:", res.error);
+        setTasks(previousTasks);
+      } else if (res?.task) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === tempId ? { ...t, id: res.task.id } : t))
+        );
+      }
     } catch (err) {
       console.error("Error al añadir tarea:", err);
+      setTasks(previousTasks);
     }
   };
 
-  // Eliminar tarea
+  // Eliminar tarea con Server Action y rollback
   const handleDeleteTask = async (taskId: string) => {
+    const previousTasks = tasks;
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
     try {
-      await deleteTask(taskId);
+      const res = await deleteTaskAction(taskId);
+      if (res?.error) {
+        console.error("Error al eliminar tarea:", res.error);
+        setTasks(previousTasks);
+      }
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
+      setTasks(previousTasks);
     }
   };
 

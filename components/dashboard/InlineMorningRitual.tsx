@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { MorningRitual, EnergyLevel } from "@/lib/types";
-import { updateMorningRitual } from "@/lib/api";
+import { updateMorningRitualAction } from "@/app/actions";
 import { Sparkles, Target, Zap, ShieldCheck, Check, Edit2, Battery, BatteryCharging } from "lucide-react";
 
 interface InlineMorningRitualProps {
@@ -28,6 +28,7 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
   const [editingField, setEditingField] = React.useState<"mission" | "frog" | "pillar" | null>(null);
   const [tempValue, setTempValue] = React.useState<string>("");
 
+  // Sincronizar estado cuando el Server Component revalida y envía datos frescos
   React.useEffect(() => {
     setData(initialData);
   }, [initialData]);
@@ -38,7 +39,7 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
     setTempValue(data[field] || "");
   };
 
-  // Guardar en Supabase en background
+  // Guardar en Supabase en background con Server Action y rollback
   const handleSaveField = async (field: "mission" | "frog" | "pillar") => {
     if (!tempValue.trim()) {
       setEditingField(null);
@@ -47,23 +48,36 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
     const val = tempValue.trim();
     setEditingField(null);
 
+    const previousData = data;
     const updated = { ...data, [field]: val };
     setData(updated);
 
     try {
-      await updateMorningRitual({ [field]: val });
+      const res = await updateMorningRitualAction({ [field]: val });
+      if (res?.error) {
+        console.error("Error al actualizar ritual:", res.error);
+        setData(previousData);
+      }
     } catch (err) {
       console.error("Error al actualizar ritual:", err);
+      setData(previousData);
     }
   };
 
-  // Cambiar nivel de energía
+  // Cambiar nivel de energía con Server Action y rollback
   const handleEnergyChange = async (level: EnergyLevel) => {
+    const previousData = data;
     setData((prev) => ({ ...prev, energyLevel: level }));
+
     try {
-      await updateMorningRitual({ energyLevel: level });
+      const res = await updateMorningRitualAction({ energyLevel: level });
+      if (res?.error) {
+        console.error("Error al actualizar energía:", res.error);
+        setData(previousData);
+      }
     } catch (err) {
       console.error("Error al actualizar energía:", err);
+      setData(previousData);
     }
   };
 

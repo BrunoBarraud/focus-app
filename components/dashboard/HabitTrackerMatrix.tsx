@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { Habit, HabitCategory } from "@/lib/types";
-import { toggleHabitDay, updateHabitTitle, addHabit, deleteHabit } from "@/lib/api";
+import {
+  toggleHabitDayAction,
+  updateHabitTitleAction,
+  addHabitAction,
+  deleteHabitAction,
+} from "@/app/actions";
 import { getDaysInMonth, calculateStreak } from "@/lib/utils";
 import { Flame, Plus, Check, Edit2, Trash2 } from "lucide-react";
 
@@ -34,13 +39,15 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
   );
   const currentDay = new Date().getDate(); // 16
 
-  // Sincronizar estado inicial
+  // Sincronizar estado inicial cuando el Server Component revalida y envía datos frescos
   React.useEffect(() => {
     setHabits(initialHabits);
   }, [initialHabits]);
 
-  // Toggle de un día con UI optimista
+  // Toggle de un día con UI optimista y rollback
   const handleToggle = async (habitId: string, day: number) => {
+    const previousHabits = habits;
+
     // Optimistic update
     setHabits((prev) =>
       prev.map((h) => {
@@ -58,9 +65,14 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
     );
 
     try {
-      await toggleHabitDay(habitId, day);
+      const res = await toggleHabitDayAction(habitId, day);
+      if (res?.error) {
+        console.error("Error al registrar hábito en Supabase:", res.error);
+        setHabits(previousHabits);
+      }
     } catch (err) {
       console.error("Error al registrar hábito:", err);
+      setHabits(previousHabits);
     }
   };
 
@@ -70,7 +82,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
     setEditTitle(habit.name);
   };
 
-  // Guardar edición de título
+  // Guardar edición de título con Server Action
   const saveTitle = async (habitId: string) => {
     if (!editTitle.trim()) {
       setEditingId(null);
@@ -79,25 +91,34 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
     const titleToSave = editTitle.trim();
     setEditingId(null);
 
+    const previousHabits = habits;
+
     // Optimistic
     setHabits((prev) =>
       prev.map((h) => (h.id === habitId ? { ...h, name: titleToSave } : h))
     );
 
     try {
-      await updateHabitTitle(habitId, titleToSave);
+      const res = await updateHabitTitleAction(habitId, titleToSave);
+      if (res?.error) {
+        console.error("Error al actualizar título del hábito:", res.error);
+        setHabits(previousHabits);
+      }
     } catch (err) {
       console.error("Error al actualizar título del hábito:", err);
+      setHabits(previousHabits);
     }
   };
 
-  // Crear nuevo hábito inline
+  // Crear nuevo hábito inline con Server Action
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
 
+    const previousHabits = habits;
+    const tempId = "temp-" + Date.now();
     const tempHabit: Habit = {
-      id: "temp-" + Date.now(),
+      id: tempId,
       name: newHabitName.trim(),
       category: newHabitCat,
       monthlyTargetDays: newHabitTarget,
@@ -112,25 +133,49 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
     setIsAdding(false);
 
     try {
-      const updated = await addHabit({
+      const res = await addHabitAction({
         name: tempHabit.name,
         category: tempHabit.category,
         monthlyTargetDays: tempHabit.monthlyTargetDays,
         color: tempHabit.color,
       });
-      setHabits(updated);
+
+      if (res?.error) {
+        console.error("Error al agregar hábito en Supabase:", res.error);
+        setHabits(previousHabits);
+      } else if (res?.habit) {
+        // Reemplazar tempId con el id real asignado por Supabase
+        setHabits((prev) =>
+          prev.map((h) =>
+            h.id === tempId
+              ? {
+                  ...h,
+                  id: res.habit.id,
+                }
+              : h
+          )
+        );
+      }
     } catch (err) {
       console.error("Error al agregar hábito:", err);
+      setHabits(previousHabits);
     }
   };
 
-  // Eliminar hábito
+  // Eliminar hábito con Server Action y rollback
   const handleDeleteHabit = async (habitId: string) => {
+    const previousHabits = habits;
     setHabits((prev) => prev.filter((h) => h.id !== habitId));
+
     try {
-      await deleteHabit(habitId);
+      const res = await deleteHabitAction(habitId);
+      if (res?.error) {
+        console.error("Error al eliminar hábito de Supabase:", res.error);
+        setHabits(previousHabits);
+      }
     } catch (err) {
       console.error("Error al eliminar hábito:", err);
+      setHabits(previousHabits);
     }
   };
 
