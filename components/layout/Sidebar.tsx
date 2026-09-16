@@ -28,8 +28,9 @@ export function Sidebar() {
     getUser();
   }, []);
 
-  const displayName =
+  const fullName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Invitado";
+  const firstName = fullName.split(" ")[0];
 
   return (
     <>
@@ -76,7 +77,7 @@ export function Sidebar() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-zinc-100 truncate group-hover/user:text-violet-300 transition-colors">
-                      {displayName}
+                      {firstName}
                     </p>
                     <p className="text-[10px] text-zinc-400 truncate">
                       {user.email}

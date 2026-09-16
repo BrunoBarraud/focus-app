@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 export const NAV_ITEMS = [
   {
     label: "Dashboard",
-    href: "/dashboard",
+    href: "/",
     icon: LayoutDashboard,
   },
   {
@@ -47,7 +47,7 @@ export function NavigationItems({ onItemClick }: { onItemClick?: () => void }) {
     <nav className="space-y-1.5 px-2">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname.startsWith(item.href);
+        const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
         return (
           <Link
