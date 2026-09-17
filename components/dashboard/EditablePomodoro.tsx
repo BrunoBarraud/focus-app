@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Play, Pause, RotateCcw, Flame, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, Flame, Volume2, VolumeX, Sparkles, Zap, Coffee } from "lucide-react";
 
 export function EditablePomodoro() {
   const [initialSeconds, setInitialSeconds] = React.useState<number>(25 * 60);
   const [timeLeft, setTimeLeft] = React.useState<number>(25 * 60);
   const [isRunning, setIsRunning] = React.useState<boolean>(false);
-  const [mode, setMode] = React.useState<"focus" | "short_break" | "long_break">("focus");
+  const [mode, setMode] = React.useState<"focus" | "deep" | "short_break" | "long_break">("focus");
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editInput, setEditInput] = React.useState<string>("25:00");
   const [soundEnabled, setSoundEnabled] = React.useState<boolean>(true);
@@ -50,7 +50,7 @@ export function EditablePomodoro() {
     } else if (isRunning && timeLeft === 0) {
       setIsRunning(false);
       playBeep();
-      if (mode === "focus") {
+      if (mode === "focus" || mode === "deep") {
         setSessionsCompleted((c) => c + 1);
       }
     }
@@ -58,7 +58,7 @@ export function EditablePomodoro() {
   }, [isRunning, timeLeft, mode]);
 
   // Cambiar modo con presets
-  const handleSetMode = (newMode: "focus" | "short_break" | "long_break", mins: number) => {
+  const handleSetMode = (newMode: "focus" | "deep" | "short_break" | "long_break", mins: number) => {
     setIsRunning(false);
     setMode(newMode);
     const totalSecs = mins * 60;
@@ -71,7 +71,6 @@ export function EditablePomodoro() {
   const handleTimeBlur = () => {
     setIsEditing(false);
     const trimmed = editInput.trim();
-    // Parse MM:SS or MM
     if (trimmed.includes(":")) {
       const [mStr, sStr] = trimmed.split(":");
       const m = parseInt(mStr, 10) || 0;
@@ -106,145 +105,191 @@ export function EditablePomodoro() {
     Math.min(100, ((initialSeconds - timeLeft) / (initialSeconds || 1)) * 100)
   );
 
+  // SVG Circular progress params
+  const radius = 100;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
   return (
-    <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between">
+    <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-6 sm:p-7 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between min-h-[440px] relative overflow-hidden group">
+      {/* Background ambient glow */}
+      <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-violet-600/10 blur-3xl pointer-events-none" />
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-            <Flame className="h-4 w-4 fill-current" />
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-rose-500/20 to-violet-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-inner">
+            <Flame className="h-5 w-5 fill-current animate-pulse" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+            <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
               Focus Mode
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-full">
+                Hiperenfoque
+              </span>
             </h2>
-            <p className="text-[11px] text-zinc-400">
-              {sessionsCompleted} sesiones de hiperenfoque hoy
+            <p className="text-xs text-zinc-400">
+              {sessionsCompleted > 0
+                ? `${sessionsCompleted} bloque${sessionsCompleted > 1 ? "s" : ""} completado${sessionsCompleted > 1 ? "s" : ""} hoy`
+                : "Inicia tu primer bloque de concentración profunda"}
             </p>
           </div>
         </div>
 
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
-          className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] transition-colors"
+          className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] transition-colors cursor-pointer"
           title={soundEnabled ? "Silenciar" : "Activar sonido"}
         >
-          {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
         </button>
       </div>
 
-      {/* Temporizador Central Minimalista con tiempo editable */}
-      <div className="flex flex-col items-center justify-center py-6 text-center">
-        {/* Barra de progreso sutil Apple */}
-        <div className="w-48 h-1.5 bg-zinc-800/80 rounded-full mb-6 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-violet-500 to-rose-500 transition-all duration-300 rounded-full"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* Display con tiempo editable con un clic */}
-        <div className="relative group/timer inline-block">
-          {isEditing ? (
-            <input
-              type="text"
-              value={editInput}
-              onChange={(e) => setEditInput(e.target.value)}
-              onBlur={handleTimeBlur}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              className="font-mono text-5xl sm:text-6xl font-black tracking-tight text-white bg-transparent text-center border-b-2 border-violet-500 focus:outline-none w-48 sm:w-56"
-            />
-          ) : (
-            <div
-              onClick={() => {
-                if (!isRunning) {
-                  setIsEditing(true);
-                  setEditInput(formatTime(timeLeft));
-                }
-              }}
-              title={isRunning ? "Pausa el temporizador para editar el tiempo" : "Haz clic para editar la duración"}
-              className={`font-mono text-5xl sm:text-6xl font-black tracking-tight select-none transition-all ${
-                isRunning
-                  ? "text-white"
-                  : "text-zinc-100 hover:text-violet-400 cursor-pointer"
-              }`}
-            >
-              {formatTime(timeLeft)}
-            </div>
-          )}
-
-          {!isRunning && !isEditing && (
-            <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 block mt-2 opacity-60 group-hover/timer:opacity-100 transition-opacity">
-              Clic en el tiempo para modificar
-            </span>
-          )}
-        </div>
-
-        {/* Controles Principales */}
-        <div className="flex items-center gap-3 mt-6">
-          <button
-            onClick={() => setIsRunning(!isRunning)}
-            className={`px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
-              isRunning
-                ? "bg-amber-500 hover:bg-amber-400 text-zinc-950"
-                : "bg-white hover:bg-zinc-200 text-zinc-950"
-            }`}
-          >
-            {isRunning ? (
-              <>
-                <Pause className="h-3.5 w-3.5 fill-current" /> Pausar
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5 fill-current" /> Iniciar Enfoque
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={handleReset}
-            className="p-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-zinc-300 hover:text-white transition-all cursor-pointer"
-            title="Reiniciar temporizador"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Botones limpios debajo para descansos rápidos */}
-      <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/[0.06]">
+      {/* Presets de modos */}
+      <div className="grid grid-cols-4 gap-1.5 p-1 bg-zinc-950/80 rounded-xl border border-white/[0.06] text-xs font-semibold">
         <button
+          type="button"
           onClick={() => handleSetMode("focus", 25)}
-          className={`py-2 px-2 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer ${
+          className={`py-1.5 rounded-lg transition-all text-center cursor-pointer ${
             mode === "focus"
-              ? "bg-violet-600/20 border-violet-500 text-white"
-              : "bg-zinc-950/40 border-white/[0.04] text-zinc-400 hover:text-zinc-200"
+              ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
+              : "text-zinc-400 hover:text-white"
           }`}
         >
-          25m Pomodoro
+          25m
         </button>
-
         <button
+          type="button"
+          onClick={() => handleSetMode("deep", 50)}
+          className={`py-1.5 rounded-lg transition-all text-center cursor-pointer ${
+            mode === "deep"
+              ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          50m Deep
+        </button>
+        <button
+          type="button"
           onClick={() => handleSetMode("short_break", 5)}
-          className={`py-2 px-2 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer ${
+          className={`py-1.5 rounded-lg transition-all text-center cursor-pointer ${
             mode === "short_break"
-              ? "bg-emerald-600/20 border-emerald-500 text-white"
-              : "bg-zinc-950/40 border-white/[0.04] text-zinc-400 hover:text-zinc-200"
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+              : "text-zinc-400 hover:text-white"
           }`}
         >
-          5m Corto
+          5m Pausa
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSetMode("long_break", 15)}
+          className={`py-1.5 rounded-lg transition-all text-center cursor-pointer ${
+            mode === "long_break"
+              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          15m Break
+        </button>
+      </div>
+
+      {/* Dial Circular y Display Central de Gran Altura */}
+      <div className="flex flex-col items-center justify-center py-6 text-center relative my-auto">
+        <div className="relative flex items-center justify-center">
+          {/* SVG Circular Ring */}
+          <svg className="w-56 h-56 sm:w-64 sm:h-64 -rotate-90 transform" viewBox="0 0 240 240">
+            {/* Background Track */}
+            <circle
+              cx="120"
+              cy="120"
+              r={radius}
+              stroke="currentColor"
+              strokeWidth="10"
+              className="text-zinc-800/70"
+              fill="transparent"
+            />
+            {/* Active Progress */}
+            <circle
+              cx="120"
+              cy="120"
+              r={radius}
+              stroke="currentColor"
+              strokeWidth="10"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              className="text-violet-500 transition-all duration-500 ease-out drop-shadow-[0_0_12px_rgba(139,92,246,0.6)]"
+              fill="transparent"
+            />
+          </svg>
+
+          {/* Time Display en el centro del dial */}
+          <div className="absolute flex flex-col items-center justify-center">
+            {isEditing ? (
+              <input
+                type="text"
+                value={editInput}
+                onChange={(e) => setEditInput(e.target.value)}
+                onBlur={handleTimeBlur}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                className="font-mono text-5xl sm:text-6xl font-black tracking-tight text-white bg-transparent text-center border-b-2 border-violet-500 focus:outline-none w-44"
+              />
+            ) : (
+              <div
+                onClick={() => {
+                  if (!isRunning) {
+                    setIsEditing(true);
+                    setEditInput(formatTime(timeLeft));
+                  }
+                }}
+                title={isRunning ? "Pausa para editar" : "Haz clic para editar la duración"}
+                className={`font-mono text-5xl sm:text-6xl font-black tracking-tight select-none transition-all ${
+                  isRunning
+                    ? "text-white drop-shadow-[0_2px_16px_rgba(255,255,255,0.25)]"
+                    : "text-zinc-100 hover:text-violet-400 cursor-pointer"
+                }`}
+              >
+                {formatTime(timeLeft)}
+              </div>
+            )}
+
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mt-1">
+              {isRunning ? (mode.includes("break") ? "Descanso Activo" : "Enfoque Activo") : "Listo para arrancar"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controles Principales Grandes */}
+      <div className="flex items-center justify-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={() => setIsRunning(!isRunning)}
+          className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg active:scale-95 ${
+            isRunning
+              ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-500/20"
+              : "bg-white hover:bg-zinc-200 text-zinc-950 shadow-white/10 hover:shadow-white/20"
+          }`}
+        >
+          {isRunning ? (
+            <>
+              <Pause className="h-4 w-4 fill-current" /> Pausar Sesión
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 fill-current" /> Iniciar Sesión de Enfoque
+            </>
+          )}
         </button>
 
         <button
-          onClick={() => handleSetMode("long_break", 15)}
-          className={`py-2 px-2 rounded-xl text-[11px] font-semibold transition-all border cursor-pointer ${
-            mode === "long_break"
-              ? "bg-blue-600/20 border-blue-500 text-white"
-              : "bg-zinc-950/40 border-white/[0.04] text-zinc-400 hover:text-zinc-200"
-          }`}
+          type="button"
+          onClick={handleReset}
+          className="p-3.5 text-zinc-400 hover:text-white rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer active:scale-95"
+          title="Reiniciar temporizador"
         >
-          15m Largo
+          <RotateCcw className="h-4 w-4" />
         </button>
       </div>
     </div>

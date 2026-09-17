@@ -258,17 +258,28 @@ export async function getWeeklyTasks(): Promise<PlannerTask[]> {
 
   if (error || !data) return [];
 
-  return data.map((t: any) => ({
-    id: t.id,
-    title: t.title,
-    description: t.description || "",
-    day: (t.day_of_week as WeekDay) || "L",
-    scheduledDate: t.scheduled_date || undefined,
-    priority: (t.priority as any) || "medium",
-    estimatedMinutes: t.estimated_minutes || 30,
-    completed: t.status === "completed",
-    tag: t.tag || "General",
-  }));
+  return data.map((t: any) => {
+    let cleanDesc = t.description || "";
+    let scheduledTime: string | undefined = undefined;
+    if (cleanDesc.startsWith("@time:")) {
+      const lines = cleanDesc.split("\n");
+      scheduledTime = lines[0].replace("@time:", "").trim();
+      cleanDesc = lines.slice(1).join("\n").trim();
+    }
+
+    return {
+      id: t.id,
+      title: t.title,
+      description: cleanDesc,
+      day: (t.day_of_week as WeekDay) || "L",
+      scheduledDate: t.scheduled_date || undefined,
+      scheduledTime,
+      priority: (t.priority as any) || "medium",
+      estimatedMinutes: t.estimated_minutes || 30,
+      completed: t.status === "completed",
+      tag: t.tag || "General",
+    };
+  });
 }
 
 export async function toggleTaskCompletion(taskId: string): Promise<PlannerTask[]> {
@@ -294,10 +305,14 @@ export async function addTask(
   const { supabase, user } = await getCurrentUser();
   if (!user) throw new Error("Debes iniciar sesión");
 
+  const rawDescription = task.scheduledTime
+    ? `@time:${task.scheduledTime}${task.description ? "\n" + task.description : ""}`
+    : task.description || null;
+
   await supabase.from("tasks").insert({
     user_id: user.id,
     title: task.title,
-    description: task.description,
+    description: rawDescription,
     day_of_week: task.day,
     scheduled_date: task.scheduledDate || null,
     priority: task.priority,

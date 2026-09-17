@@ -230,17 +230,28 @@ export default async function HomePage() {
         .order("created_at", { ascending: true });
 
       if (userTasks) {
-        tasksData = userTasks.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          description: t.description || "",
-          day: (t.day_of_week as WeekDay) || "X",
-          scheduledDate: t.scheduled_date || undefined,
-          priority: (t.priority as any) || "medium",
-          estimatedMinutes: t.estimated_minutes || 30,
-          completed: t.status === "completed",
-          tag: t.tag || "General",
-        }));
+        tasksData = userTasks.map((t: any) => {
+          let cleanDesc = t.description || "";
+          let scheduledTime: string | undefined = undefined;
+          if (cleanDesc.startsWith("@time:")) {
+            const lines = cleanDesc.split("\n");
+            scheduledTime = lines[0].replace("@time:", "").trim();
+            cleanDesc = lines.slice(1).join("\n").trim();
+          }
+
+          return {
+            id: t.id,
+            title: t.title,
+            description: cleanDesc,
+            day: (t.day_of_week as WeekDay) || "X",
+            scheduledDate: t.scheduled_date || undefined,
+            scheduledTime,
+            priority: (t.priority as any) || "medium",
+            estimatedMinutes: t.estimated_minutes || 30,
+            completed: t.status === "completed",
+            tag: t.tag || "General",
+          };
+        });
       }
 
       // 4. Objetivos

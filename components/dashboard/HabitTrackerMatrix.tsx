@@ -8,7 +8,7 @@ import {
   addHabitAction,
   deleteHabitAction,
 } from "@/app/actions";
-import { getDaysInMonth, calculateStreak } from "@/lib/utils";
+import { getDaysInMonth, calculateStreak, getLocalDay } from "@/lib/utils";
 import { Flame, Plus, Check, Edit2, Trash2 } from "lucide-react";
 
 interface HabitTrackerMatrixProps {
@@ -39,13 +39,13 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
     setMounted(true);
   }, [initialHabits]);
 
-  // Días del mes y día actual
+  // Días del mes y día actual con zona horaria local segura
   const daysInMonth = mounted ? getDaysInMonth() : 31; // Default to 31 for SSR
   const daysArray = React.useMemo(
     () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
     [daysInMonth]
   );
-  const currentDay = mounted ? new Date().getDate() : -1;
+  const currentDay = mounted ? getLocalDay() : -1;
 
   // Toggle de un día con UI optimista y rollback
   const handleToggle = async (habitId: string, day: number) => {

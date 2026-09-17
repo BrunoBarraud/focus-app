@@ -35,6 +35,7 @@ export interface PlannerTask {
   description?: string;
   day: WeekDay;
   scheduledDate?: string;
+  scheduledTime?: string; // Formato HH:MM, ej. "10:30"
   priority: "high" | "medium" | "low";
   estimatedMinutes: number;
   completed: boolean;

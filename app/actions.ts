@@ -290,13 +290,29 @@ export async function toggleHabitDayAction(habitId: string, day: number) {
 // 3. TAREAS (ORGANIZADOR INTELIGENTE CON REVALIDACIÓN)
 // ==============================================================================
 
+function parseTaskTimeAndDesc(rawDesc?: string): { scheduledTime?: string; cleanDescription?: string } {
+  if (!rawDesc) return {};
+  if (rawDesc.startsWith("@time:")) {
+    const lines = rawDesc.split("\n");
+    const time = lines[0].replace("@time:", "").trim();
+    const clean = lines.slice(1).join("\n").trim();
+    return {
+      scheduledTime: time || undefined,
+      cleanDescription: clean || undefined,
+    };
+  }
+  return { cleanDescription: rawDesc };
+}
+
 /**
- * Server Action: Agregar una nueva tarea
+ * Server Action: Agregar una nueva tarea o reunión con horario
  */
 export async function addTaskAction(task: {
   title: string;
+  description?: string;
   day: WeekDay;
   scheduledDate?: string;
+  scheduledTime?: string;
   priority: "high" | "medium" | "low";
   estimatedMinutes: number;
   completed?: boolean;
@@ -311,11 +327,16 @@ export async function addTaskAction(task: {
     return { error: "Usuario no autenticado." };
   }
 
+  const rawDescription = task.scheduledTime
+    ? `@time:${task.scheduledTime}${task.description ? "\n" + task.description : ""}`
+    : task.description || null;
+
   const { data: newTask, error } = await supabase
     .from("tasks")
     .insert({
       user_id: user.id,
       title: task.title,
+      description: rawDescription,
       day_of_week: task.day,
       scheduled_date: task.scheduledDate || null,
       priority: task.priority,
@@ -331,10 +352,19 @@ export async function addTaskAction(task: {
     return { error: error.message };
   }
 
+  const parsed = parseTaskTimeAndDesc(newTask.description);
+
   revalidatePath("/", "layout");
   revalidatePath("/dashboard", "layout");
   revalidatePath("/planificador", "layout");
-  return { success: true, task: newTask };
+  return {
+    success: true,
+    task: {
+      ...newTask,
+      description: parsed.cleanDescription,
+      scheduledTime: parsed.scheduledTime,
+    },
+  };
 }
 
 /**
@@ -407,6 +437,56 @@ export async function deleteTaskAction(taskId: string) {
   revalidatePath("/dashboard", "layout");
   revalidatePath("/planificador", "layout");
   return { success: true };
+}
+
+/**
+ * Server Action: Obtener tareas parametrizadas por mes y año para navegación futura
+ */
+export async function getTasksForMonthAction(year: number, month: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Usuario no autenticado.", tasks: [] };
+  }
+
+  const startOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDay = new Date(year, month, 0).getDate();
+  const endOfMonth = `${year}-${String(month).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+
+  // Consultar tareas programadas para ese mes o tareas recurrentes generales
+  const { data: monthTasks, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", user.id)
+    .or(`and(scheduled_date.gte.${startOfMonth},scheduled_date.lte.${endOfMonth}),scheduled_date.is.null`)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error al obtener tareas del mes:", error.message);
+    return { error: error.message, tasks: [] };
+  }
+
+  return {
+    success: true,
+    tasks: (monthTasks || []).map((t: any) => {
+      const parsed = parseTaskTimeAndDesc(t.description);
+      return {
+        id: t.id,
+        title: t.title,
+        description: parsed.cleanDescription || "",
+        day: (t.day_of_week as WeekDay) || "L",
+        scheduledDate: t.scheduled_date || undefined,
+        scheduledTime: parsed.scheduledTime,
+        priority: (t.priority as any) || "medium",
+        estimatedMinutes: t.estimated_minutes || 30,
+        completed: t.status === "completed",
+        tag: t.tag || "General",
+      };
+    }),
+  };
 }
 
 // ==============================================================================

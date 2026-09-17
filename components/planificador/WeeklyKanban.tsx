@@ -22,6 +22,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playTaskCompletedSound } from "@/lib/sound";
 
 interface WeeklyKanbanProps {
   initialTasks: PlannerTask[];
@@ -94,9 +95,11 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
   const [estimatedMinutes, setEstimatedMinutes] = React.useState(45);
   const [tag, setTag] = React.useState("Enfoque");
   const [modalScheduledDate, setModalScheduledDate] = React.useState<string | undefined>(undefined);
+  const [modalScheduledTime, setModalScheduledTime] = React.useState<string>("");
 
   // Inline form para vista mensual
   const [inlineMonthTitle, setInlineMonthTitle] = React.useState("");
+  const [inlineMonthTime, setInlineMonthTime] = React.useState("");
   const [inlineMonthPriority, setInlineMonthPriority] = React.useState<PlannerTask["priority"]>("medium");
   const [inlineMonthMinutes, setInlineMonthMinutes] = React.useState(30);
 
@@ -157,6 +160,10 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
   }, [selectedMonthDateIso, getTasksForDate]);
 
   const handleToggle = async (taskId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    if (target && !target.completed) {
+      playTaskCompletedSound();
+    }
     const updated = await toggleTaskCompletion(taskId);
     setTasks(updated);
   };
@@ -169,6 +176,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
   const openAddModal = (day: WeekDay, scheduledDate?: string) => {
     setActiveDay(day);
     setModalScheduledDate(scheduledDate);
+    setModalScheduledTime("");
     setTitle("");
     setDescription("");
     setIsModalOpen(true);
@@ -183,6 +191,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       description: description.trim(),
       day: activeDay,
       scheduledDate: modalScheduledDate,
+      scheduledTime: modalScheduledTime ? modalScheduledTime.trim() : undefined,
       priority,
       estimatedMinutes: Number(estimatedMinutes) || 30,
       completed: false,
@@ -191,6 +200,19 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
     setTasks(updated);
     setIsModalOpen(false);
+  };
+
+  const handlePrevMonth = () => {
+    setDisplayMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setDisplayMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleCurrentMonth = () => {
+    setDisplayMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setSelectedMonthDateIso(todayIso);
   };
 
   // Crear tarea inline en la vista mensual
@@ -205,6 +227,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       title: inlineMonthTitle.trim(),
       day: weekDayKey,
       scheduledDate: selectedMonthDateIso,
+      scheduledTime: inlineMonthTime ? inlineMonthTime.trim() : undefined,
       priority: inlineMonthPriority,
       estimatedMinutes: Number(inlineMonthMinutes) || 30,
       completed: false,
@@ -213,6 +236,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
     setTasks(updated);
     setInlineMonthTitle("");
+    setInlineMonthTime("");
   };
 
   const totalTasks = tasks.length;
@@ -294,7 +318,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       </div>
 
       {/* 1. VISTA SEMANAL (KANBAN) */}
-      {viewMode === "week" && (
+      {viewMode === "week" ? (
         <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x min-h-[420px] animate-in fade-in duration-200">
           {weekColumns.map((col) => {
             const columnTasks = tasks.filter((t) => t.day === col.day);
@@ -425,6 +449,13 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                                     : "Baja"}
                                 </Badge>
 
+                                {task.scheduledTime && (
+                                  <span className="text-[11px] text-violet-300 font-mono font-medium flex items-center gap-1 bg-violet-500/20 px-1.5 py-0.5 rounded border border-violet-500/30">
+                                    <Clock className="h-3 w-3" />
+                                    {task.scheduledTime}
+                                  </span>
+                                )}
+
                                 <span className="text-[11px] text-zinc-400 flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {task.estimatedMinutes}m
@@ -458,194 +489,196 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                     onClick={() => openAddModal(col.day)}
                     className="w-full justify-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 border-zinc-800 hover:bg-zinc-900 cursor-pointer"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Añadir Tarea
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Añadir tarea</span>
                   </Button>
                 </div>
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* 2. VISTA MENSUAL PROGRAMABLE */}
-      {viewMode === "month" && (
-        <div className="space-y-6 animate-in fade-in duration-200">
-          {/* Card Principal del Calendario */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6 shadow-xl">
-            {/* Navegación del Mes */}
-            <div className="flex items-center justify-between bg-zinc-900/60 border border-zinc-800/80 rounded-xl px-4 py-2.5 mb-5">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDisplayMonthDate(
-                      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-                    )
-                  }
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+      ) : (
+        /* VISTA MENSUAL */
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* Header de navegación del mes */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handlePrevMonth}
+                  className="h-8 w-8 p-0 text-zinc-400 hover:text-white cursor-pointer"
                   title="Mes anterior"
                 >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-wide">
-                  {calendarMonthData.monthName} {calendarMonthData.year}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setDisplayMonthDate(
-                      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-                    )
-                  }
-                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNextMonth}
+                  className="h-8 w-8 p-0 text-zinc-400 hover:text-white cursor-pointer"
                   title="Mes siguiente"
                 >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setDisplayMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
-                  setSelectedMonthDateIso(todayIso);
-                }}
-                className="text-xs font-semibold text-violet-400 hover:text-violet-300 px-3 py-1.5 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 transition-colors cursor-pointer"
-              >
-                Ir al Día de Hoy
-              </button>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-white capitalize flex items-center gap-2">
+                  <span>{calendarMonthData.monthName}</span>
+                  <span className="text-zinc-500 font-normal">{calendarMonthData.year}</span>
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Haz clic en cualquier día para ver sus tareas o programar una nueva
+                </p>
+              </div>
             </div>
 
-            {/* Encabezado de los 7 días */}
-            <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-zinc-400 pb-2 border-b border-zinc-800/60">
-              <span>LUNES</span>
-              <span>MARTES</span>
-              <span>MIÉRCOLES</span>
-              <span>JUEVES</span>
-              <span>VIERNES</span>
-              <span>SÁBADO</span>
-              <span>DOMINGO</span>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCurrentMonth}
+              className="text-xs border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 self-start sm:self-auto cursor-pointer"
+            >
+              Ir a este mes
+            </Button>
+          </div>
 
-            {/* Grilla de Días del Mes */}
-            <div className="grid grid-cols-7 gap-2 pt-3">
-              {/* Padding inicio de mes */}
-              {Array.from({ length: calendarMonthData.paddingDays }).map((_, i) => (
+          {/* Grilla Calendario */}
+          <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-3 sm:p-4 overflow-hidden">
+            {/* Cabecera de días de la semana */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => (
                 <div
-                  key={`empty-${i}`}
-                  className="min-h-[70px] sm:min-h-[85px] rounded-xl border border-transparent opacity-20 bg-zinc-900/20"
+                  key={d}
+                  className="text-center text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-zinc-500 py-1"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+
+            {/* Celdas del calendario */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {/* Espacios vacíos antes del primer día del mes */}
+              {Array.from({ length: calendarMonthData.paddingDays }).map((_, idx) => (
+                <div
+                  key={`pad-${idx}`}
+                  className="min-h-[70px] sm:min-h-[85px] rounded-xl bg-zinc-950/20 border border-transparent p-1.5 opacity-30"
                 />
               ))}
 
               {/* Días del mes */}
-              {calendarMonthData.days.map((d) => {
-                const dayTasks = getTasksForDate(d.iso, d.weekDayKey);
-                const total = dayTasks.length;
-                const completed = dayTasks.filter((t) => t.completed).length;
-                const hasPending = total > completed;
+              {calendarMonthData.days.map((item) => {
+                const dayTasks = getTasksForDate(item.iso, item.weekDayKey);
+                const hasPending = dayTasks.some((t) => !t.completed);
+                const isPastDay = item.iso < todayIso;
+                const hasOverdue = isPastDay && hasPending;
 
                 return (
-                  <button
-                    key={d.iso}
-                    type="button"
-                    onClick={() => setSelectedMonthDateIso(d.iso)}
+                  <div
+                    key={item.iso}
+                    onClick={() => setSelectedMonthDateIso(item.iso)}
                     className={cn(
-                      "min-h-[70px] sm:min-h-[85px] rounded-xl border p-2 flex flex-col justify-between text-left transition-all cursor-pointer relative group",
-                      d.isSelected
-                        ? "bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/20 ring-2 ring-violet-500"
-                        : d.isToday
-                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 ring-1 ring-emerald-500/30"
-                        : "bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:bg-zinc-800/50 hover:border-zinc-700"
+                      "min-h-[70px] sm:min-h-[85px] rounded-xl p-1.5 sm:p-2 border transition-all cursor-pointer flex flex-col justify-between select-none relative group",
+                      item.isSelected
+                        ? "bg-violet-950/30 border-violet-500/80 shadow-md shadow-violet-950/50 ring-1 ring-violet-500/50"
+                        : item.isToday
+                        ? "bg-zinc-900/90 border-violet-500/40 hover:border-violet-500/60"
+                        : "bg-zinc-900/40 border-zinc-800/60 hover:bg-zinc-900/80 hover:border-zinc-700/80"
                     )}
                   >
-                    <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center justify-between">
                       <span
                         className={cn(
-                          "text-xs sm:text-sm font-bold",
-                          d.isToday
-                            ? "text-emerald-400 font-extrabold"
-                            : d.isSelected
-                            ? "text-white"
-                            : "text-zinc-300"
+                          "text-xs sm:text-sm font-semibold inline-flex items-center justify-center rounded-lg w-6 h-6",
+                          item.isToday
+                            ? "bg-violet-600 text-white shadow-sm shadow-violet-600/50"
+                            : item.isSelected
+                            ? "text-violet-300 font-bold"
+                            : "text-zinc-300 group-hover:text-white"
                         )}
                       >
-                        {d.dayNum}
+                        {item.dayNum}
                       </span>
-                      {d.isToday && (
-                        <span className="px-1 py-0.5 text-[8px] font-black bg-emerald-400 text-zinc-950 rounded uppercase leading-none">
-                          Hoy
-                        </span>
-                      )}
-                    </div>
 
-                    {/* Tareas del día indicator */}
-                    <div className="mt-1 space-y-1 w-full">
-                      {total > 0 ? (
-                        <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {hasOverdue && (
+                          <span
+                            className="h-2 w-2 rounded-full bg-rose-500 animate-pulse"
+                            title="Tareas pendientes vencidas"
+                          />
+                        )}
+                        {dayTasks.length > 0 && (
                           <span
                             className={cn(
-                              "text-[10px] font-bold px-1.5 py-0.5 rounded leading-none border",
-                              hasPending
-                                ? "bg-violet-500/20 text-violet-300 border-violet-500/30"
-                                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                              "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-medium",
+                              hasOverdue
+                                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                : hasPending
+                                ? "bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                             )}
                           >
-                            {completed}/{total}
+                            {dayTasks.length}
                           </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Previa de tareas en pantalla grande */}
+                    <div className="mt-1 space-y-1 hidden sm:block">
+                      {dayTasks.slice(0, 2).map((t) => (
+                        <div
+                          key={t.id}
+                          className={cn(
+                            "text-[10px] truncate px-1.5 py-0.5 rounded leading-tight",
+                            t.completed
+                              ? "line-through text-zinc-500 bg-zinc-950/40"
+                              : "text-zinc-200 bg-zinc-800/80"
+                          )}
+                        >
+                          {t.title}
                         </div>
-                      ) : (
-                        <span className="text-[10px] text-zinc-600 group-hover:text-zinc-500 hidden sm:inline">
-                          —
+                      ))}
+                      {dayTasks.length > 2 && (
+                        <span className="text-[9px] text-zinc-500 pl-1">
+                          +{dayTasks.length - 2} más
                         </span>
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Panel de Gestión y Programación del Día Seleccionado */}
-          <div className="rounded-2xl border border-violet-500/30 bg-zinc-950/80 p-5 sm:p-6 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-xl bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
-                  <ListTodo className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm sm:text-base text-white capitalize">
-                    Tareas para el {selectedMonthDateFormatted}
-                  </h3>
-                  <p className="text-xs text-zinc-400">
-                    {selectedMonthTasks.filter((t) => t.completed).length} de {selectedMonthTasks.length} completadas
-                  </p>
-                </div>
-              </div>
-
+          {/* Panel de Detalle del Día Seleccionado y Programador Rápido */}
+          <div className="p-4 sm:p-5 bg-zinc-900/80 border border-zinc-800 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const dateObj = new Date(selectedMonthDateIso + "T12:00:00");
-                    const weekDayKey = DAY_INDEX_MAP[dateObj.getDay()] || "L";
-                    openAddModal(weekDayKey, selectedMonthDateIso);
-                  }}
-                  className="text-xs gap-1 border-violet-500/30 hover:bg-violet-500/10 text-violet-300"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Programar con Detalles
-                </Button>
+                <CalendarDays className="h-5 w-5 text-violet-400" />
+                <h4 className="text-sm sm:text-base font-bold text-white capitalize">
+                  Tareas para el {selectedMonthDateFormatted}
+                </h4>
+                {selectedMonthDateIso === todayIso && (
+                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px]">
+                    Hoy
+                  </Badge>
+                )}
               </div>
+              <span className="text-xs text-zinc-400">
+                {selectedMonthTasks.length} {selectedMonthTasks.length === 1 ? "tarea" : "tareas"}
+              </span>
             </div>
 
-            {/* Lista de Tareas para este día */}
-            <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+            {/* Lista de tareas de ese día */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {selectedMonthTasks.length === 0 ? (
-                <div className="py-8 text-center text-xs text-zinc-500 bg-zinc-900/20 rounded-xl border border-dashed border-zinc-800">
-                  No hay tareas programadas para este día del mes.
-                  <p className="text-[11px] text-violet-400/80 mt-1">
-                    Escribe abajo para programar una tarea instantáneamente.
-                  </p>
+                <div className="text-center py-6 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                  <p className="text-xs text-zinc-400">No hay tareas programadas para esta fecha.</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Usa el formulario abajo para añadir una reunión o tarea.</p>
                 </div>
               ) : (
                 selectedMonthTasks.map((task) => (
@@ -654,11 +687,11 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                     className={cn(
                       "flex items-center justify-between p-3 rounded-xl border transition-all group",
                       task.completed
-                        ? "bg-zinc-900/40 border-zinc-800/40 opacity-60"
-                        : "bg-zinc-900/90 border-zinc-800 hover:border-violet-500/40"
+                        ? "bg-zinc-950/40 border-zinc-800/50 opacity-60"
+                        : "bg-zinc-900/90 border-zinc-800 hover:border-zinc-700"
                     )}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <button
                         type="button"
                         onClick={() => handleToggle(task.id)}
@@ -670,6 +703,14 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                           <Circle className="h-4 w-4" />
                         )}
                       </button>
+
+                      {task.scheduledTime && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0 font-mono">
+                          <Clock className="h-3 w-3" />
+                          {task.scheduledTime}
+                        </span>
+                      )}
+
                       <div className="min-w-0">
                         <span
                           className={cn(
@@ -718,13 +759,21 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
             </div>
 
             {/* Formulario Inline Rápido para Programar Tarea */}
-            <form onSubmit={handleCreateMonthTask} className="pt-2 flex items-center gap-2">
+            <form onSubmit={handleCreateMonthTask} className="pt-2 flex flex-wrap sm:flex-nowrap items-center gap-2">
               <input
                 type="text"
-                placeholder={`+ Programar tarea para el ${selectedMonthDateFormatted.split(",")[0] || "día"}...`}
+                placeholder={`+ Programar tarea o reunión para el ${selectedMonthDateFormatted.split(",")[0] || "día"}...`}
                 value={inlineMonthTitle}
                 onChange={(e) => setInlineMonthTitle(e.target.value)}
-                className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+                className="flex-1 min-w-[140px] bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+              />
+
+              <input
+                type="time"
+                value={inlineMonthTime}
+                onChange={(e) => setInlineMonthTime(e.target.value)}
+                title="Hora de la reunión o tarea (opcional)"
+                className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2.5 py-2.5 text-xs sm:text-sm text-violet-300 font-mono focus:outline-none focus:border-violet-500 cursor-pointer"
               />
 
               <select
@@ -764,18 +813,18 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       <Dialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        title="Programar Nueva Tarea"
-        description="Añade un bloque de enfoque con prioridad y tiempo estimado a tu planificador."
+        title="Programar Nueva Tarea o Reunión"
+        description="Añade un bloque de enfoque o reunión con horario a tu planificador."
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Título de la Tarea
+              Título de la Tarea / Reunión
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Rediseñar flujo de autenticación..."
+              placeholder="Ej: Reunión de sincronización de equipo..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
@@ -784,18 +833,18 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Detalles / Contexto (Opcional)
+              Detalles / Enlace de Reunión (Opcional)
             </label>
             <textarea
               rows={2}
-              placeholder="Notas clave o enlaces de referencia..."
+              placeholder="Notas clave, enlace a Google Meet / Zoom..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
                 Día
@@ -811,6 +860,18 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
+                Hora (opcional)
+              </label>
+              <input
+                type="time"
+                value={modalScheduledTime}
+                onChange={(e) => setModalScheduledTime(e.target.value)}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-violet-300 font-mono focus:border-violet-500 focus:outline-none cursor-pointer"
+              />
             </div>
 
             <div>

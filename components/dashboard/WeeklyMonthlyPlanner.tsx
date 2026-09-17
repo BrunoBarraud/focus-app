@@ -2,7 +2,23 @@
 
 import * as React from "react";
 import { PlannerTask, WeekDay } from "@/lib/types";
-import { addTaskAction, deleteTaskAction, toggleTaskAction } from "@/app/actions";
+import {
+  addTaskAction,
+  deleteTaskAction,
+  toggleTaskAction,
+  getTasksForMonthAction,
+} from "@/app/actions";
+import {
+  getLocalTodayIso,
+  parseLocalDate,
+  formatLocalDateEs,
+} from "@/lib/utils";
+import {
+  playNotificationSound,
+  playTaskCompletedSound,
+  requestNotificationPermission,
+  sendScheduledNotification,
+} from "@/lib/sound";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -14,6 +30,11 @@ import {
   ChevronRight,
   ListTodo,
   CalendarDays,
+  AlertCircle,
+  Bell,
+  BellRing,
+  Video,
+  Users,
   Sparkles,
 } from "lucide-react";
 
@@ -57,7 +78,7 @@ function formatIsoDate(year: number, month: number, day: number): string {
 }
 
 function getWeekDayKeyFromDate(date: Date): WeekDay {
-  const dayIndex = date.getDay(); // 0 is Sun, 1 is Mon...
+  const dayIndex = date.getDay();
   const found = WEEK_DAYS_META.find((m) => m.dayIndex === dayIndex);
   return found ? found.key : "L";
 }
@@ -66,38 +87,119 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
   const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
   const [viewMode, setViewMode] = React.useState<"week" | "month">("month");
 
-  // Fecha de referencia actual
-  const today = React.useMemo(() => new Date(), []);
-  const todayIso = React.useMemo(
-    () => formatIsoDate(today.getFullYear(), today.getMonth(), today.getDate()),
-    [today]
-  );
-  const todayWeekDayKey = React.useMemo(() => getWeekDayKeyFromDate(today), [today]);
+  // Fecha local real sin desfase UTC
+  const todayIso = React.useMemo(() => getLocalTodayIso(), []);
+  const todayDateObj = React.useMemo(() => parseLocalDate(todayIso), [todayIso]);
+  const todayWeekDayKey = React.useMemo(() => getWeekDayKeyFromDate(todayDateObj), [todayDateObj]);
 
   // Modo Semana: día seleccionado (por defecto hoy)
   const [selectedDay, setSelectedDay] = React.useState<WeekDay>(todayWeekDayKey);
 
-  // Modo Mes: navegación del mes actual y fecha seleccionada
-  const [displayDate, setDisplayDate] = React.useState<Date>(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  // Modo Mes: navegación libre de mes/año y fecha seleccionada
+  const [displayDate, setDisplayDate] = React.useState<Date>(
+    () => new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1)
+  );
   const [selectedDateIso, setSelectedDateIso] = React.useState<string>(todayIso);
+  const [loadingMonth, setLoadingMonth] = React.useState(false);
 
-  // Formularios inline
+  // Notificaciones & Sonido
+  const [notificationsEnabled, setNotificationsEnabled] = React.useState(false);
+  const [alertedTaskIds] = React.useState<Set<string>>(() => new Set());
+
+  // Formulario rápido
   const [newTaskTitle, setNewTaskTitle] = React.useState("");
+  const [newTaskTime, setNewTaskTime] = React.useState("");
   const [newTaskPriority, setNewTaskPriority] = React.useState<"high" | "medium" | "low">("medium");
   const [newTaskMinutes, setNewTaskMinutes] = React.useState(30);
+  const [isMeeting, setIsMeeting] = React.useState(false);
 
-  // Sincronizar estado cuando el Server Component revalida
+  // Sincronizar estado cuando el Server Component envía datos frescos
   React.useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
 
-  // 1. Días de la semana actual (Lunes a Domingo)
+  // Chequeo de notificaciones y permisos en montaje
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        setNotificationsEnabled(true);
+      }
+    }
+  }, []);
+
+  // Monitor activo de tareas con horario de hoy para alertas sonoras y notificaciones
+  React.useEffect(() => {
+    if (!notificationsEnabled) return;
+
+    const interval = setInterval(() => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, "0");
+      const currentMinutes = String(now.getMinutes()).padStart(2, "0");
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      // Filtrar tareas de hoy que no hayan sido alertadas aún
+      const todayTasks = tasks.filter((t) => {
+        const isForToday = t.scheduledDate ? t.scheduledDate === todayIso : t.day === todayWeekDayKey;
+        return isForToday && !t.completed && t.scheduledTime && !alertedTaskIds.has(t.id);
+      });
+
+      todayTasks.forEach((t) => {
+        if (t.scheduledTime === currentTimeStr) {
+          alertedTaskIds.add(t.id);
+          const isCall = t.tag.toLowerCase().includes("reunión") || t.title.toLowerCase().includes("reunión");
+          sendScheduledNotification(
+            isCall ? `🔔 Reunión ahora: ${t.title}` : `⏰ Tarea programada: ${t.title}`,
+            `Comienza a las ${t.scheduledTime} hs (${t.estimatedMinutes}m estimados).`
+          );
+        }
+      });
+    }, 15000); // Check cada 15 segundos
+
+    return () => clearInterval(interval);
+  }, [notificationsEnabled, tasks, todayIso, todayWeekDayKey, alertedTaskIds]);
+
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        setNotificationsEnabled(true);
+      } else {
+        // Fallback: solo sonido
+        playNotificationSound();
+        setNotificationsEnabled(true);
+      }
+    } else {
+      setNotificationsEnabled(false);
+    }
+  };
+
+  // Navegación futura parametrizada: consultar a Supabase al cambiar de mes
+  const fetchTasksForDisplayMonth = React.useCallback(async (targetDate: Date) => {
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1; // 1-based
+    setLoadingMonth(true);
+    try {
+      const res = await getTasksForMonthAction(year, month);
+      if (res?.success && Array.isArray(res.tasks)) {
+        setTasks((prev) => {
+          const existingIds = new Set(res.tasks.map((t) => t.id));
+          const filteredPrev = prev.filter((t) => !existingIds.has(t.id));
+          return [...filteredPrev, ...res.tasks];
+        });
+      }
+    } catch (err) {
+      console.warn("No se pudieron cargar tareas del mes:", err);
+    } finally {
+      setLoadingMonth(false);
+    }
+  }, []);
+
+  // 1. Días de la semana actual (Lunes a Domingo) calculados en hora local
   const currentWeekDays = React.useMemo(() => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
+    const dayOfWeek = todayDateObj.getDay();
     const diffToMonday = (dayOfWeek + 6) % 7;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - diffToMonday);
+    const monday = new Date(todayDateObj);
+    monday.setDate(todayDateObj.getDate() - diffToMonday);
 
     return WEEK_DAYS_META.map((meta, i) => {
       const dateObj = new Date(monday);
@@ -112,7 +214,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
         isToday,
       };
     });
-  }, [todayIso]);
+  }, [todayDateObj, todayIso]);
 
   // 2. Días del mes mostrado
   const calendarDays = React.useMemo(() => {
@@ -128,11 +230,12 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
       weekDayKey: WeekDay;
       isToday: boolean;
       isSelected: boolean;
+      isPast: boolean;
     }[] = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = formatIsoDate(year, month, d);
-      const dayDate = new Date(year, month, d);
+      const dayDate = parseLocalDate(iso);
       const weekDayKey = getWeekDayKeyFromDate(dayDate);
       days.push({
         dayNum: d,
@@ -140,6 +243,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
         weekDayKey,
         isToday: iso === todayIso,
         isSelected: iso === selectedDateIso,
+        isPast: iso < todayIso,
       });
     }
 
@@ -152,14 +256,24 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
     };
   }, [displayDate, todayIso, selectedDateIso]);
 
-  // Filtrar tareas para un día específico
+  // Filtrar y ordenar cronológicamente tareas para un día específico
   const getTasksForDate = React.useCallback(
     (isoDate: string, weekDayKey: WeekDay) => {
-      return tasks.filter((t) => {
+      const dayList = tasks.filter((t) => {
         if (t.scheduledDate) {
           return t.scheduledDate === isoDate;
         }
         return t.day === weekDayKey;
+      });
+
+      // Ordenar: primero las que tienen hora fija (HH:MM), luego el resto
+      return [...dayList].sort((a, b) => {
+        if (a.scheduledTime && b.scheduledTime) {
+          return a.scheduledTime.localeCompare(b.scheduledTime);
+        }
+        if (a.scheduledTime) return -1;
+        if (b.scheduledTime) return 1;
+        return 0;
       });
     },
     [tasks]
@@ -174,16 +288,24 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
 
   // Tareas para la fecha seleccionada en modo mes
   const selectedDateTasks = React.useMemo(() => {
-    const dateObj = new Date(selectedDateIso + "T12:00:00");
+    const dateObj = parseLocalDate(selectedDateIso);
     const weekDayKey = getWeekDayKeyFromDate(dateObj);
     return getTasksForDate(selectedDateIso, weekDayKey);
   }, [selectedDateIso, getTasksForDate]);
 
-  // Toggle tarea con optimismo
+  // Toggle tarea con UI optimista y sonido de satisfacción
   const handleToggleTask = async (taskId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    const willComplete = target ? !target.completed : false;
+
+    // Reproducir sonido gratificante al completar
+    if (willComplete) {
+      playTaskCompletedSound();
+    }
+
     const previousTasks = tasks;
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, completed: willComplete } : t))
     );
 
     try {
@@ -230,20 +352,23 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
       title: newTaskTitle.trim(),
       day: selectedDay,
       scheduledDate: targetIso,
+      scheduledTime: newTaskTime ? newTaskTime.trim() : undefined,
       priority: newTaskPriority,
       estimatedMinutes: newTaskMinutes,
       completed: false,
-      tag: "Enfoque",
+      tag: isMeeting ? "Reunión" : "Enfoque",
     };
 
     setTasks((prev) => [...prev, tempTask]);
     setNewTaskTitle("");
+    setNewTaskTime("");
 
     try {
       const res = await addTaskAction({
         title: tempTask.title,
         day: tempTask.day,
         scheduledDate: tempTask.scheduledDate,
+        scheduledTime: tempTask.scheduledTime,
         priority: tempTask.priority,
         estimatedMinutes: tempTask.estimatedMinutes,
         completed: false,
@@ -264,12 +389,12 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
     }
   };
 
-  // Añadir tarea en modo mensual (100% PROGRAMABLE)
+  // Añadir tarea en modo mensual
   const handleAddMonthTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    const dateObj = new Date(selectedDateIso + "T12:00:00");
+    const dateObj = parseLocalDate(selectedDateIso);
     const weekDayKey = getWeekDayKeyFromDate(dateObj);
 
     const previousTasks = tasks;
@@ -279,20 +404,23 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
       title: newTaskTitle.trim(),
       day: weekDayKey,
       scheduledDate: selectedDateIso,
+      scheduledTime: newTaskTime ? newTaskTime.trim() : undefined,
       priority: newTaskPriority,
       estimatedMinutes: newTaskMinutes,
       completed: false,
-      tag: "Plan Mensual",
+      tag: isMeeting ? "Reunión" : "Plan Mensual",
     };
 
     setTasks((prev) => [...prev, tempTask]);
     setNewTaskTitle("");
+    setNewTaskTime("");
 
     try {
       const res = await addTaskAction({
         title: tempTask.title,
         day: tempTask.day,
         scheduledDate: tempTask.scheduledDate,
+        scheduledTime: tempTask.scheduledTime,
         priority: tempTask.priority,
         estimatedMinutes: tempTask.estimatedMinutes,
         completed: false,
@@ -313,37 +441,34 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
     }
   };
 
-  // Navegación de meses
+  // Navegación libre a meses futuros y pasados
   const handlePrevMonth = () => {
-    setDisplayDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    const newDate = new Date(displayDate.getFullYear(), displayDate.getMonth() - 1, 1);
+    setDisplayDate(newDate);
+    fetchTasksForDisplayMonth(newDate);
   };
 
   const handleNextMonth = () => {
-    setDisplayDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    const newDate = new Date(displayDate.getFullYear(), displayDate.getMonth() + 1, 1);
+    setDisplayDate(newDate);
+    fetchTasksForDisplayMonth(newDate);
   };
 
   const handleGoToToday = () => {
-    setDisplayDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    const newDate = new Date(todayDateObj.getFullYear(), todayDateObj.getMonth(), 1);
+    setDisplayDate(newDate);
     setSelectedDateIso(todayIso);
+    fetchTasksForDisplayMonth(newDate);
   };
 
-  // Formato amigable para el encabezado del día seleccionado
+  // Formato amigable de la fecha seleccionada
   const selectedDateFormatted = React.useMemo(() => {
-    try {
-      const dateObj = new Date(selectedDateIso + "T12:00:00");
-      return dateObj.toLocaleDateString("es-ES", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
-    } catch {
-      return selectedDateIso;
-    }
+    return formatLocalDateEs(selectedDateIso);
   }, [selectedDateIso]);
 
   return (
-    <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between">
-      {/* Header Principal con Switch Semana / Mes */}
+    <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between h-full">
+      {/* Header Principal con Switch y Notificaciones Sonoras */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2.5">
@@ -357,44 +482,77 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 Planificador Inteligente
-                {viewMode === "month" && (
-                  <span className="text-[10px] uppercase font-bold text-violet-300 bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 rounded-full">
-                    Programable
+                <span className="text-[10px] uppercase font-bold text-violet-300 bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 rounded-full">
+                  Horarios & Alertas
+                </span>
+                {loadingMonth && (
+                  <span className="text-[9px] text-zinc-400 animate-pulse">
+                    Sincronizando...
                   </span>
                 )}
               </h2>
               <p className="text-xs text-zinc-400">
                 {viewMode === "week"
-                  ? "Semana en curso • Organización L-D"
-                  : `${calendarDays.monthName} ${calendarDays.year} • Programa y gestiona cualquier día`}
+                  ? "Semana en curso • Horarios, reuniones & alertas L-D"
+                  : `${calendarDays.monthName} ${calendarDays.year} • Navegación y programación flexible`}
               </p>
             </div>
           </div>
 
-          {/* Toggle Switch */}
-          <div className="flex items-center self-start sm:self-auto bg-zinc-950/80 p-1 rounded-xl border border-white/10 shadow-inner">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Botón de Notificaciones con Sonido */}
             <button
               type="button"
-              onClick={() => setViewMode("week")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                viewMode === "week"
-                  ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
-                  : "text-zinc-400 hover:text-white"
+              onClick={handleToggleNotifications}
+              className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                notificationsEnabled
+                  ? "bg-violet-600/20 border-violet-500/40 text-violet-300 shadow-sm"
+                  : "bg-zinc-950/80 border-white/10 text-zinc-400 hover:text-white"
               }`}
+              title={
+                notificationsEnabled
+                  ? "Notificaciones con sonido activadas (clic para desactivar)"
+                  : "Activar recordatorios sonoros para reuniones y tareas"
+              }
             >
-              Semana
+              {notificationsEnabled ? (
+                <>
+                  <BellRing className="h-3.5 w-3.5 text-violet-400 animate-bounce" />
+                  <span className="hidden sm:inline text-[11px]">Alertas Activas</span>
+                </>
+              ) : (
+                <>
+                  <Bell className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline text-[11px]">Activar Sonido</span>
+                </>
+              )}
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                viewMode === "month"
-                  ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              <span>Vista Mensual</span>
-            </button>
+
+            {/* Toggle Switch */}
+            <div className="flex items-center bg-zinc-950/80 p-1 rounded-xl border border-white/10 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setViewMode("week")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  viewMode === "week"
+                    ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                Semana
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("month")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  viewMode === "month"
+                    ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                <span>Mes</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -407,15 +565,20 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                 const isSelected = selectedDay === d.key;
                 const tasksForDay = getTasksForDate(d.iso, d.key);
                 const completedCount = tasksForDay.filter((t) => t.completed).length;
+                const isPastDay = d.iso < todayIso;
+                const hasUncompletedPast = isPastDay && tasksForDay.length > completedCount;
+                const hasMeetings = tasksForDay.some((t) => t.scheduledTime || t.tag === "Reunión");
 
                 return (
                   <button
                     key={d.key}
                     type="button"
                     onClick={() => setSelectedDay(d.key)}
-                    className={`flex-1 min-w-[76px] sm:min-w-[84px] py-2.5 px-2 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
+                    className={`flex-1 min-w-[76px] sm:min-w-[84px] py-2.5 px-2 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between relative ${
                       isSelected
                         ? "bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/10 ring-1 ring-violet-500"
+                        : hasUncompletedPast
+                        ? "bg-rose-500/10 border-rose-500/40 text-rose-300 hover:bg-rose-500/20"
                         : "bg-zinc-950/50 border-white/[0.06] text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
                     }`}
                   >
@@ -428,6 +591,12 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                           HOY
                         </span>
                       )}
+                      {hasUncompletedPast && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/80 animate-pulse"
+                          title="Tareas vencidas no completadas"
+                        />
+                      )}
                     </div>
                     <span
                       className={`text-lg sm:text-xl font-extrabold block my-0.5 ${
@@ -437,6 +606,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                       {d.dateNum}
                     </span>
                     <div className="flex items-center justify-center gap-1 text-[10px] text-zinc-400">
+                      {hasMeetings && <Clock className="h-2.5 w-2.5 text-violet-400" />}
                       <span>
                         {tasksForDay.length > 0 ? `${completedCount}/${tasksForDay.length}` : "—"}
                       </span>
@@ -451,7 +621,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
               <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-white/[0.06] pb-2">
                 <span className="font-semibold text-zinc-200 flex items-center gap-1.5 capitalize">
                   <ListTodo className="h-3.5 w-3.5 text-violet-400" />
-                  Tareas para {currentWeekDays.find((d) => d.key === selectedDay)?.name}{" "}
+                  Tareas & Reuniones para {currentWeekDays.find((d) => d.key === selectedDay)?.name}{" "}
                   {currentWeekDays.find((d) => d.key === selectedDay)?.dateNum}
                 </span>
                 <span className="text-[11px] text-zinc-400">
@@ -459,84 +629,128 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                 </span>
               </div>
 
-              {/* Lista de Tareas */}
+              {/* Lista de Tareas ordenada cronológicamente */}
               <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                 {weekDayTasks.length === 0 ? (
                   <div className="py-6 text-center text-xs text-zinc-500">
-                    No hay tareas para este día. Escribe abajo para añadir una.
+                    No hay eventos ni tareas para este día. Escribe abajo para programar.
                   </div>
                 ) : (
-                  weekDayTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                        task.completed
-                          ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
-                          : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleTask(task.id)}
-                          className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                          ) : (
-                            <Circle className="h-4 w-4" />
-                          )}
-                        </button>
-                        <span
-                          className={`text-xs font-medium truncate ${
-                            task.completed ? "line-through text-zinc-500" : "text-zinc-200"
-                          }`}
-                        >
-                          {task.title}
-                        </span>
-                      </div>
+                  weekDayTasks.map((task) => {
+                    const isMeetingItem =
+                      task.tag === "Reunión" || task.title.toLowerCase().includes("reunión");
 
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                            PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
-                          }`}
-                        >
-                          {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 hidden sm:inline-flex items-center gap-0.5">
-                          <Clock className="h-3 w-3" />
-                          {task.estimatedMinutes}m
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                    return (
+                      <div
+                        key={task.id}
+                        className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                          task.completed
+                            ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
+                            : isMeetingItem
+                            ? "bg-violet-950/30 border-violet-500/30 hover:border-violet-500/60"
+                            : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTask(task.id)}
+                            className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          {/* Horario programado destacado */}
+                          {task.scheduledTime && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0 font-mono">
+                              <Clock className="h-3 w-3" />
+                              {task.scheduledTime}
+                            </span>
+                          )}
+
+                          <span
+                            className={`text-xs font-medium truncate ${
+                              task.completed ? "line-through text-zinc-500" : "text-zinc-200"
+                            }`}
+                          >
+                            {task.title}
+                          </span>
+
+                          {isMeetingItem && (
+                            <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-teal-300 bg-teal-500/15 border border-teal-500/30 px-1.5 py-0.5 rounded">
+                              <Video className="h-2.5 w-2.5" /> Reunión
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                              PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
+                            }`}
+                          >
+                            {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 hidden sm:inline-flex items-center gap-0.5">
+                            {task.estimatedMinutes}m
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
-              {/* Formulario rápido */}
-              <form onSubmit={handleAddWeekTask} className="pt-2 flex items-center gap-2">
+              {/* Formulario rápido con selección de hora */}
+              <form onSubmit={handleAddWeekTask} className="pt-2 flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <input
                   type="text"
-                  placeholder={`+ Nueva tarea para ${
+                  placeholder={`+ Tarea o Reunión para ${
                     currentWeekDays.find((d) => d.key === selectedDay)?.short
                   }...`}
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+                  className="flex-1 min-w-[140px] bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
                 />
+
+                {/* Input de Hora */}
+                <input
+                  type="time"
+                  value={newTaskTime}
+                  onChange={(e) => setNewTaskTime(e.target.value)}
+                  title="Hora de la reunión o tarea (opcional)"
+                  className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-1.5 text-xs text-violet-300 font-mono focus:outline-none focus:border-violet-500 cursor-pointer"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setIsMeeting(!isMeeting)}
+                  className={`px-2 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                    isMeeting
+                      ? "bg-violet-600 text-white border-violet-500"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                  }`}
+                  title={isMeeting ? "Marcado como Reunión" : "Marcar como Reunión"}
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Reunión</span>
+                </button>
 
                 <select
                   value={newTaskPriority}
                   onChange={(e) => setNewTaskPriority(e.target.value as any)}
-                  className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
+                  className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 cursor-pointer"
                 >
                   <option value="high">Alta</option>
                   <option value="medium">Media</option>
@@ -545,7 +759,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
 
                 <button
                   type="submit"
-                  className="px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
+                  className="px-3.5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -555,24 +769,24 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
         ) : (
           /* 2. VISTA MENSUAL PROGRAMABLE */
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Navegación de mes */}
+            {/* Barra de Navegación de Mes */}
             <div className="flex items-center justify-between bg-zinc-950/60 border border-white/[0.06] rounded-xl px-3 py-2">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handlePrevMonth}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                   title="Mes anterior"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="text-xs font-bold text-white tracking-wide">
+                <span className="text-xs sm:text-sm font-bold text-white tracking-wide">
                   {calendarDays.monthName} {calendarDays.year}
                 </span>
                 <button
                   type="button"
                   onClick={handleNextMonth}
-                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                   title="Mes siguiente"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -582,9 +796,9 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
               <button
                 type="button"
                 onClick={handleGoToToday}
-                className="text-[11px] font-semibold text-violet-400 hover:text-violet-300 px-2 py-1 rounded-lg hover:bg-violet-500/10 transition-colors cursor-pointer"
+                className="text-[11px] font-semibold text-violet-400 hover:text-violet-300 px-2.5 py-1 rounded-lg hover:bg-violet-500/10 border border-violet-500/20 transition-colors cursor-pointer"
               >
-                Ir a Hoy
+                Volver a Hoy
               </button>
             </div>
 
@@ -615,6 +829,8 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                 const total = dayTasks.length;
                 const completed = dayTasks.filter((t) => t.completed).length;
                 const hasPending = total > completed;
+                const hasOverdue = d.isPast && hasPending;
+                const hasMeetings = dayTasks.some((t) => t.scheduledTime || t.tag === "Reunión");
 
                 return (
                   <button
@@ -624,26 +840,44 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                     className={`h-11 sm:h-12 rounded-xl border flex flex-col items-center justify-between p-1 transition-all cursor-pointer relative group ${
                       d.isSelected
                         ? "bg-violet-600/25 border-violet-500 text-white shadow-md shadow-violet-500/20 ring-1 ring-violet-500"
+                        : hasOverdue
+                        ? "bg-rose-500/10 border-rose-500/40 text-rose-300 hover:bg-rose-500/20"
                         : d.isToday
                         ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold ring-1 ring-emerald-500/20"
                         : "bg-zinc-950/50 border-white/[0.04] text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full px-1">
-                      <span className={`text-[11px] font-semibold ${d.isToday ? "text-emerald-400" : ""}`}>
+                      <span
+                        className={`text-[11px] font-semibold ${
+                          d.isToday ? "text-emerald-400" : hasOverdue ? "text-rose-400" : ""
+                        }`}
+                      >
                         {d.dayNum}
                       </span>
-                      {d.isToday && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      )}
+
+                      {/* Punto indicador de HOY o VENCIDO */}
+                      {d.isToday ? (
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-sm" />
+                      ) : hasOverdue ? (
+                        <span
+                          className="h-2 w-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/80 animate-pulse"
+                          title="Tareas vencidas sin completar"
+                        />
+                      ) : null}
                     </div>
 
                     {/* Indicadores de Tareas Programadas */}
                     <div className="flex items-center gap-0.5 pb-0.5">
+                      {hasMeetings && (
+                        <span className="h-1 w-1 rounded-full bg-cyan-400" title="Contiene reunión" />
+                      )}
                       {total > 0 && (
                         <span
                           className={`text-[9px] px-1 rounded font-bold leading-none py-0.5 ${
-                            hasPending
+                            hasOverdue
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                              : hasPending
                               ? "bg-violet-500/30 text-violet-300 border border-violet-500/40"
                               : "bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
                           }`}
@@ -665,7 +899,7 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                     <ListTodo className="h-3.5 w-3.5" />
                   </div>
                   <span className="font-bold text-xs sm:text-sm text-zinc-100 capitalize">
-                    Tareas para el {selectedDateFormatted}
+                    Tareas & Horarios para el {selectedDateFormatted}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -677,6 +911,11 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                       HOY
                     </span>
                   )}
+                  {selectedDateIso < todayIso && selectedDateTasks.some((t) => !t.completed) && (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-md">
+                      <AlertCircle className="h-3 w-3" /> VENCIDAS
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -684,76 +923,120 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
               <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                 {selectedDateTasks.length === 0 ? (
                   <div className="py-5 text-center text-xs text-zinc-500 bg-zinc-900/30 rounded-xl border border-dashed border-zinc-800">
-                    No hay tareas programadas para este día del mes.
+                    No hay tareas ni reuniones programadas para esta fecha.
                     <p className="text-[11px] text-violet-400/80 mt-0.5">
-                      Programa una abajo y se guardará directamente en tu calendario.
+                      Programa una abajo con horario y recibirás una alerta sonora.
                     </p>
                   </div>
                 ) : (
-                  selectedDateTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                        task.completed
-                          ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
-                          : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleTask(task.id)}
-                          className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                          ) : (
-                            <Circle className="h-4 w-4" />
-                          )}
-                        </button>
-                        <span
-                          className={`text-xs font-medium truncate ${
-                            task.completed ? "line-through text-zinc-500" : "text-zinc-200"
-                          }`}
-                        >
-                          {task.title}
-                        </span>
-                      </div>
+                  selectedDateTasks.map((task) => {
+                    const isMeetingItem =
+                      task.tag === "Reunión" || task.title.toLowerCase().includes("reunión");
 
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                            PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
-                          }`}
-                        >
-                          {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 hidden sm:inline-flex items-center gap-0.5">
-                          <Clock className="h-3 w-3" />
-                          {task.estimatedMinutes}m
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                    return (
+                      <div
+                        key={task.id}
+                        className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                          task.completed
+                            ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
+                            : isMeetingItem
+                            ? "bg-violet-950/30 border-violet-500/30 hover:border-violet-500/60"
+                            : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTask(task.id)}
+                            className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          {/* Horario de la Reunión */}
+                          {task.scheduledTime && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0 font-mono">
+                              <Clock className="h-3 w-3" />
+                              {task.scheduledTime}
+                            </span>
+                          )}
+
+                          <span
+                            className={`text-xs font-medium truncate ${
+                              task.completed ? "line-through text-zinc-500" : "text-zinc-200"
+                            }`}
+                          >
+                            {task.title}
+                          </span>
+
+                          {isMeetingItem && (
+                            <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-teal-300 bg-teal-500/15 border border-teal-500/30 px-1.5 py-0.5 rounded">
+                              <Video className="h-2.5 w-2.5" /> Reunión
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                              PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
+                            }`}
+                          >
+                            {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 hidden sm:inline-flex items-center gap-0.5">
+                            {task.estimatedMinutes}m
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
-              {/* Formulario Inline para Programar Tarea en la Fecha Seleccionada */}
-              <form onSubmit={handleAddMonthTask} className="pt-1 flex items-center gap-2">
+              {/* Formulario Inline para Programar Tarea o Reunión */}
+              <form onSubmit={handleAddMonthTask} className="pt-1 flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <input
                   type="text"
-                  placeholder={`+ Programar tarea para el ${selectedDateFormatted.split(",")[0] || "día"}...`}
+                  placeholder={`+ Tarea o Reunión para el ${selectedDateFormatted.split(",")[0] || "día"}...`}
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+                  className="flex-1 min-w-[140px] bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
                 />
+
+                {/* Input de Hora de la Reunión */}
+                <input
+                  type="time"
+                  value={newTaskTime}
+                  onChange={(e) => setNewTaskTime(e.target.value)}
+                  title="Hora de la reunión o tarea (opcional)"
+                  className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-1.5 text-xs text-violet-300 font-mono focus:outline-none focus:border-violet-500 cursor-pointer"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setIsMeeting(!isMeeting)}
+                  className={`px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                    isMeeting
+                      ? "bg-violet-600 text-white border-violet-500"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white"
+                  }`}
+                  title={isMeeting ? "Marcado como Reunión" : "Marcar como Reunión"}
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Reunión</span>
+                </button>
 
                 <select
                   value={newTaskPriority}
@@ -763,17 +1046,6 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                   <option value="high">Alta</option>
                   <option value="medium">Media</option>
                   <option value="low">Baja</option>
-                </select>
-
-                <select
-                  value={newTaskMinutes}
-                  onChange={(e) => setNewTaskMinutes(Number(e.target.value))}
-                  className="hidden sm:block bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 cursor-pointer"
-                >
-                  <option value={15}>15m</option>
-                  <option value={30}>30m</option>
-                  <option value={45}>45m</option>
-                  <option value={60}>60m</option>
                 </select>
 
                 <button

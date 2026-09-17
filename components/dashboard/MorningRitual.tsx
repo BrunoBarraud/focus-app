@@ -160,7 +160,7 @@ export function MorningRitual({ initialData }: MorningRitualProps) {
             </div>
             <div>
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                Ritual Matutino
+                Priorities
                 <Badge variant="outline" className="text-[10px] py-0 px-2 uppercase font-semibold text-violet-300 border-violet-500/30 bg-violet-500/10">
                   Hoy
                 </Badge>
