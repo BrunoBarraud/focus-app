@@ -149,6 +149,11 @@ export default async function HomePage() {
       userEmail = user.email || null;
       userName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
 
+      // Limpiar datos de prueba si hay un usuario autenticado
+      habitsData = [];
+      tasksData = [];
+      goalsData = [];
+
       // 1. Settings / Ritual
       const { data: settings } = await supabase
         .from("user_settings")
