@@ -134,19 +134,35 @@ export default function LoginPage() {
             {/* TAB REGISTRO */}
             <TabsContent value="signup" className="pt-2">
               <form onSubmit={handleSignup} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">
-                    Nombre Completo
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                    <input
-                      type="text"
-                      name="fullName"
-                      required
-                      placeholder="Ej: Bruno Silva"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
-                    />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">
+                      Nombre
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+                      <input
+                        type="text"
+                        name="firstName"
+                        required
+                        placeholder="Ej: Bruno"
+                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">
+                      Apellido
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="lastName"
+                        required
+                        placeholder="Ej: Silva"
+                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
 

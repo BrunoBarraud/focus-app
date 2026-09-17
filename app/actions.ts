@@ -41,7 +41,9 @@ export async function loginAction(formData: FormData) {
 export async function signupAction(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const fullName = (formData.get("fullName") as string) || "Usuario";
+  const firstName = (formData.get("firstName") as string) || "";
+  const lastName = (formData.get("lastName") as string) || "";
+  const fullName = `${firstName} ${lastName}`.trim() || "Usuario";
   const birthDate = (formData.get("birthDate") as string) || "1995-06-15";
 
   if (!email || !password) {
@@ -55,6 +57,8 @@ export async function signupAction(formData: FormData) {
     options: {
       data: {
         full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         birth_date: birthDate,
       },
     },
@@ -548,10 +552,28 @@ export async function updateMorningRitualAction(data: Partial<MorningRitual>) {
   if (data.frog !== undefined) updates.daily_frog = data.frog;
   if (data.energyLevel !== undefined) updates.energy_level = data.energyLevel;
 
-  const { error } = await supabase.from("user_settings").upsert({
-    user_id: user.id,
-    ...updates,
-  });
+  const { data: existingSettings } = await supabase
+    .from("user_settings")
+    .select("birth_date")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  let error;
+  if (existingSettings) {
+    const { error: updateErr } = await supabase
+      .from("user_settings")
+      .update(updates)
+      .eq("user_id", user.id);
+    error = updateErr;
+  } else {
+    const { error: insertErr } = await supabase.from("user_settings").insert({
+      user_id: user.id,
+      birth_date: user.user_metadata?.birth_date || "1995-01-01",
+      target_age: 80,
+      ...updates,
+    });
+    error = insertErr;
+  }
 
   if (error) {
     console.error("Error al actualizar ritual:", error.message);
@@ -595,14 +617,32 @@ export async function updateUserProfile(data: {
   if (data.birthDate) updates.birth_date = data.birthDate;
   if (data.targetAge) updates.target_age = data.targetAge;
 
-  const { error } = await supabase.from("user_settings").upsert({
-    user_id: user.id,
-    ...updates,
-  });
+  const { data: existingSettings } = await supabase
+    .from("user_settings")
+    .select("birth_date")
+    .eq("user_id", user.id)
+    .maybeSingle();
 
-  if (error) {
-    console.error("Error al actualizar perfil:", error.message);
-    return { error: error.message };
+  let settingsError;
+  if (existingSettings) {
+    const { error: updateErr } = await supabase
+      .from("user_settings")
+      .update(updates)
+      .eq("user_id", user.id);
+    settingsError = updateErr;
+  } else {
+    const { error: insertErr } = await supabase.from("user_settings").insert({
+      user_id: user.id,
+      birth_date: data.birthDate || user.user_metadata?.birth_date || "1995-01-01",
+      target_age: data.targetAge || 80,
+      ...updates,
+    });
+    settingsError = insertErr;
+  }
+
+  if (settingsError) {
+    console.error("Error al actualizar perfil:", settingsError.message);
+    return { error: settingsError.message };
   }
 
   revalidatePath("/", "layout");
@@ -630,11 +670,29 @@ export async function updateUserSettings(data: {
     return { error: "Usuario no autenticado." };
   }
 
-  const { error } = await supabase.from("user_settings").upsert({
-    user_id: user.id,
-    ...data,
-    updated_at: new Date().toISOString(),
-  });
+  const { data: existingSettings } = await supabase
+    .from("user_settings")
+    .select("birth_date")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  let error;
+  if (existingSettings) {
+    const { error: updateErr } = await supabase
+      .from("user_settings")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+    error = updateErr;
+  } else {
+    const { error: insertErr } = await supabase.from("user_settings").insert({
+      user_id: user.id,
+      birth_date: data.birth_date || user.user_metadata?.birth_date || "1995-01-01",
+      target_age: data.target_age || 80,
+      ...data,
+      updated_at: new Date().toISOString(),
+    });
+    error = insertErr;
+  }
 
   if (error) {
     console.error("Error al actualizar configuración:", error.message);

@@ -31,18 +31,21 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
   const [newHabitCat, setNewHabitCat] = React.useState<HabitCategory>("cuerpo");
   const [newHabitTarget, setNewHabitTarget] = React.useState(20);
 
-  // Días del mes y día actual
-  const daysInMonth = getDaysInMonth();
-  const daysArray = React.useMemo(
-    () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    [daysInMonth]
-  );
-  const currentDay = new Date().getDate(); // 16
+  const [mounted, setMounted] = React.useState(false);
 
   // Sincronizar estado inicial cuando el Server Component revalida y envía datos frescos
   React.useEffect(() => {
     setHabits(initialHabits);
+    setMounted(true);
   }, [initialHabits]);
+
+  // Días del mes y día actual
+  const daysInMonth = mounted ? getDaysInMonth() : 31; // Default to 31 for SSR
+  const daysArray = React.useMemo(
+    () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    [daysInMonth]
+  );
+  const currentDay = mounted ? new Date().getDate() : -1;
 
   // Toggle de un día con UI optimista y rollback
   const handleToggle = async (habitId: string, day: number) => {

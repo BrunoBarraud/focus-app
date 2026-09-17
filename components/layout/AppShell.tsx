@@ -7,7 +7,7 @@ import { MobileNav } from "./MobileNav";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isPublicRoute = pathname === "/login";
+  const isPublicRoute = pathname === "/login" || pathname === "/";
 
   if (isPublicRoute) {
     return (
