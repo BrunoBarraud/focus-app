@@ -34,6 +34,7 @@ export interface PlannerTask {
   title: string;
   description?: string;
   day: WeekDay;
+  scheduledDate?: string;
   priority: "high" | "medium" | "low";
   estimatedMinutes: number;
   completed: boolean;

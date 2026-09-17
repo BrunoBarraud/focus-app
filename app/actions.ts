@@ -296,6 +296,7 @@ export async function toggleHabitDayAction(habitId: string, day: number) {
 export async function addTaskAction(task: {
   title: string;
   day: WeekDay;
+  scheduledDate?: string;
   priority: "high" | "medium" | "low";
   estimatedMinutes: number;
   completed?: boolean;
@@ -316,6 +317,7 @@ export async function addTaskAction(task: {
       user_id: user.id,
       title: task.title,
       day_of_week: task.day,
+      scheduled_date: task.scheduledDate || null,
       priority: task.priority,
       estimated_minutes: task.estimatedMinutes,
       status: task.completed ? "completed" : "pending",

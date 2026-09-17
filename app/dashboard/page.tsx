@@ -235,6 +235,7 @@ export default async function HomePage() {
           title: t.title,
           description: t.description || "",
           day: (t.day_of_week as WeekDay) || "X",
+          scheduledDate: t.scheduled_date || undefined,
           priority: (t.priority as any) || "medium",
           estimatedMinutes: t.estimated_minutes || 30,
           completed: t.status === "completed",

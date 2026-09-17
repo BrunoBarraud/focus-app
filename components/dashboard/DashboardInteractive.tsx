@@ -73,12 +73,12 @@ export function DashboardInteractive({
         </div>
       </div>
 
-      {/* 2. Módulo de Hábitos (Diseño Estricto: Columna fija + Timeline scrollable + Checkmarks verdes) */}
-      <section aria-labelledby="habitos-matrix-heading">
-        <HabitTrackerMatrix initialHabits={initialHabits} />
+      {/* 2. Objetivos y Metas de Alta Fluidez (Arriba del todo) */}
+      <section aria-labelledby="objetivos-heading">
+        <FluidGoalsList initialGoals={initialGoals} />
       </section>
 
-      {/* 3. Grid de 2 Columnas para Organizador Semanal y Enfoque / Ritual */}
+      {/* 3. Grid de 2 Columnas para Organizador Semanal/Mensual y Enfoque / Ritual */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Organizador Semanal y Mensual (7 columnas en desktop) */}
         <div className="lg:col-span-7">
@@ -92,9 +92,9 @@ export function DashboardInteractive({
         </div>
       </section>
 
-      {/* 4. Objetivos y Metas de Alta Fluidez */}
-      <section aria-labelledby="objetivos-heading">
-        <FluidGoalsList initialGoals={initialGoals} />
+      {/* 4. Módulo de Hábitos (Debajo del todo: Columna fija + Timeline scrollable + Checkmarks verdes) */}
+      <section aria-labelledby="habitos-matrix-heading">
+        <HabitTrackerMatrix initialHabits={initialHabits} />
       </section>
     </div>
   );
