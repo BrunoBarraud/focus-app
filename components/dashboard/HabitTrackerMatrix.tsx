@@ -256,15 +256,15 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
       )}
 
       {/* Contenedor con Scroll Horizontal (Lado Izquierdo Sticky + Lado Derecho Scrollable) */}
-      <div className="relative overflow-x-auto rounded-2xl border border-white/[0.06] bg-zinc-950/40">
+      <div className="relative overflow-x-auto rounded-2xl border border-white/[0.06] bg-zinc-950/40 touch-pan-x">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wider text-zinc-400 bg-zinc-950/60">
               {/* Lado izquierdo (Fijo / Sticky) */}
-              <th className="sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md px-4 py-3 min-w-[240px] sm:min-w-[280px] border-r border-white/[0.06]">
+              <th className="sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md px-3 sm:px-4 py-3 min-w-[170px] sm:min-w-[240px] md:min-w-[280px] border-r border-white/[0.06]">
                 <div className="flex items-center justify-between">
                   <span>HÁBITO & CATEGORÍA</span>
-                  <span className="mr-2">RACHA</span>
+                  <span className="mr-1 sm:mr-2">RACHA</span>
                 </div>
               </th>
 
@@ -314,8 +314,8 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                     className="group hover:bg-white/[0.02] transition-colors"
                   >
                     {/* Lado Izquierdo Fijo (Sticky) */}
-                    <td className="sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md px-4 py-3.5 border-r border-white/[0.06]">
-                      <div className="flex items-center justify-between gap-3">
+                    <td className="sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md px-3 sm:px-4 py-3.5 min-w-[170px] sm:min-w-[240px] md:min-w-[280px] border-r border-white/[0.06]">
+                      <div className="flex items-center justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0 pr-2">
                           {/* Nombre editable inline */}
                           {isEditing ? (

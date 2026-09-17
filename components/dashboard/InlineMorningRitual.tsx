@@ -125,7 +125,7 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
       </div>
 
       {/* Las 3 Prioridades: Objetivo Principal, Prioridad Crítica y Foco */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3">
         {/* 1. Objetivo Principal de la Sesión */}
         <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-3.5 flex flex-col justify-between hover:border-violet-500/30 transition-colors group/card">
           <div className="flex items-center justify-between mb-1.5">

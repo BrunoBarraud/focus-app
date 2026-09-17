@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col md:flex-row relative overflow-x-hidden selection:bg-violet-500/30 selection:text-violet-200">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col lg:flex-row relative overflow-x-hidden selection:bg-violet-500/30 selection:text-violet-200">
       {/* Background ambient lighting - Electric Violet */}
       <div className="fixed top-0 left-1/4 -z-10 h-96 w-96 rounded-full bg-violet-600/10 blur-[140px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 -z-10 h-96 w-96 rounded-full bg-fuchsia-600/5 blur-[150px] pointer-events-none" />
@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <MobileNav />
 
       {/* Main Content Area - Optimized for 1366x768 and smaller viewports */}
-      <main className="flex-1 md:pl-64 min-h-screen flex flex-col min-w-0">
+      <main className="flex-1 lg:pl-64 min-h-screen flex flex-col min-w-0">
         <div className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 min-w-0">
           {children}
         </div>

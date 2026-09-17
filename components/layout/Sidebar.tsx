@@ -34,7 +34,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex fixed top-0 left-0 bottom-0 z-40 w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+      <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
         {/* Brand Header */}
         <div className="flex h-16 items-center px-6 border-b border-zinc-800/80">
           <Link href="/dashboard" className="flex items-center gap-3 group">

@@ -30,7 +30,7 @@ export function MobileNav() {
 
   return (
     <>
-      <header className="md:hidden sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-zinc-800/80 bg-zinc-950/90 px-4 backdrop-blur-lg">
+      <header className="lg:hidden sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-zinc-800/80 bg-zinc-950/90 px-4 backdrop-blur-lg">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-sm shadow-violet-600/30">
             <Zap className="h-4 w-4 fill-current" />
