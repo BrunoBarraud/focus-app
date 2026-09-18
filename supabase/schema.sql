@@ -6,6 +6,8 @@
 -- 1. Tabla de Preferencias y Memento Mori (user_settings)
 CREATE TABLE IF NOT EXISTS public.user_settings (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'user')),
     birth_date DATE NOT NULL,
     target_age INT DEFAULT 80,
     daily_mission TEXT,
@@ -15,6 +17,10 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
     preferences JSONB DEFAULT '{"theme": "dark", "sound": true}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Migración para proyectos existentes:
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'user'));
 
 -- 2. Tabla de Catálogo de Hábitos (habits)
 CREATE TABLE IF NOT EXISTS public.habits (
@@ -203,16 +209,19 @@ CREATE POLICY "Users can delete their own goals"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.user_settings (user_id, birth_date, target_age, daily_mission, daily_pillar, daily_frog)
+    INSERT INTO public.user_settings (user_id, email, role, birth_date, target_age, daily_mission, daily_pillar, daily_frog)
     VALUES (
         NEW.id,
+        NEW.email,
+        'user',
         '1992-05-15', -- Fecha por defecto personalizable (aprox 34 años)
         80,
         'Diseñar y desplegar la arquitectura completa de Focus con máxima presencia.',
         'Disciplina profunda & Claridad mental',
         'Finalizar el refactor del motor de persistencia'
     )
-    ON CONFLICT (user_id) DO NOTHING;
+    ON CONFLICT (user_id) DO UPDATE
+    SET email = EXCLUDED.email;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

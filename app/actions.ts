@@ -71,6 +71,8 @@ export async function signupAction(formData: FormData) {
   if (data?.user) {
     await supabase.from("user_settings").upsert({
       user_id: data.user.id,
+      email: email,
+      role: "user",
       birth_date: birthDate,
       target_age: 80,
       daily_mission: `Propósito personal de ${fullName}`,
@@ -866,14 +868,40 @@ export async function getCurrentUserRoleAction(): Promise<{
       return { user: null, role: "user", isAuthenticated: false };
     }
 
-    const adminEmails = getAdminEmails();
     const userEmail = (user.email || "").toLowerCase();
 
+    // 1. Consultar rol y asegurar email en la base de datos (public.user_settings)
+    let dbRole: UserRole | null = null;
+    try {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("role, email")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (settings?.role === "admin" || settings?.role === "user") {
+        dbRole = settings.role as UserRole;
+      }
+
+      // Si aún no tenía el email registrado en user_settings, lo sincronizamos automáticamente
+      if (settings && !settings.email && user.email) {
+        await supabase
+          .from("user_settings")
+          .update({ email: user.email })
+          .eq("user_id", user.id);
+      }
+    } catch {
+      // Tolerar si la columna aún no fue creada en Supabase
+    }
+
+    const adminEmails = getAdminEmails();
     const isEmailAdmin = adminEmails.includes(userEmail);
     const isAppMetadataAdmin = user.app_metadata?.role === "admin";
     const isUserMetadataAdmin = user.user_metadata?.role === "admin";
+    const isDbAdmin = dbRole === "admin";
 
-    const role: UserRole = (isEmailAdmin || isAppMetadataAdmin || isUserMetadataAdmin) ? "admin" : "user";
+    // Si está marcado como admin en la BD (user_settings), por email en lista o por metadata, es admin
+    const role: UserRole = (isDbAdmin || isEmailAdmin || isAppMetadataAdmin || isUserMetadataAdmin) ? "admin" : "user";
 
     return { user, role, isAuthenticated: true };
   } catch (err) {
