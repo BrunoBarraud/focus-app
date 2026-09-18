@@ -4,8 +4,8 @@ import * as React from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
-import { updateUserProfile } from "@/app/actions";
-import { User, Calendar, Target, AlertCircle, Check } from "lucide-react";
+import { updateUserProfile, setUserRoleAction } from "@/app/actions";
+import { User, Calendar, Target, AlertCircle, Check, Crown, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface ProfileModalProps {
@@ -24,6 +24,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const [birthDate, setBirthDate] = React.useState("1995-06-15");
   const [targetAge, setTargetAge] = React.useState(80);
   const [email, setEmail] = React.useState("");
+  const [userRole, setUserRole] = React.useState<"admin" | "user">("user");
 
   React.useEffect(() => {
     if (!open) return;
@@ -42,8 +43,13 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
           setEmail(user.email || "");
           const metaName = user.user_metadata?.full_name || "";
           const metaBirth = user.user_metadata?.birth_date || "";
+          const currentRole =
+            user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin"
+              ? "admin"
+              : "user";
+          setUserRole(currentRole);
 
-          // Fetch user_settings
+          // Cargar settings desde Supabase
           const { data: settings } = await supabase
             .from("user_settings")
             .select("birth_date, target_age")
@@ -76,7 +82,11 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
         birthDate,
         targetAge: Number(targetAge) || 80,
       });
-      setSuccessMsg("¡Perfil actualizado con éxito!");
+
+      // Actualizar rol
+      await setUserRoleAction(userRole);
+
+      setSuccessMsg("¡Perfil y rol actualizados con éxito!");
       router.refresh();
       setTimeout(() => {
         onOpenChange(false);
@@ -180,6 +190,52 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
               <span className="text-[10px] text-zinc-400 mt-1 block">
                 Por defecto: 80 años (~4.160 semanas)
               </span>
+            </div>
+          </div>
+
+          {/* Rol de Usuario */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                <Crown className="h-3.5 w-3.5 text-amber-400" /> Rol en la Aplicación
+              </label>
+              <span
+                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  userRole === "admin"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                    : "bg-zinc-800 text-zinc-400"
+                }`}
+              >
+                {userRole === "admin" ? "👑 Administrador" : "👤 Usuario Común"}
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-400 leading-tight">
+              Los administradores tienen acceso a la moderación global de soporte y feedback de todos los usuarios.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setUserRole("user")}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  userRole === "user"
+                    ? "bg-zinc-800 text-white border-zinc-700"
+                    : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                }`}
+              >
+                Usuario Común
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRole("admin")}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  userRole === "admin"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
+                    : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-zinc-300"
+                }`}
+              >
+                <Crown className="h-3 w-3" />
+                Administrador
+              </button>
             </div>
           </div>
 

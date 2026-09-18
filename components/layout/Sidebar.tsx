@@ -31,6 +31,10 @@ export function Sidebar() {
   const fullName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Invitado";
   const firstName = fullName.split(" ")[0];
+  const role: "admin" | "user" =
+    user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
+      ? "admin"
+      : "user";
 
   return (
     <>
@@ -76,9 +80,20 @@ export function Sidebar() {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-100 truncate group-hover/user:text-violet-300 transition-colors">
-                      {firstName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-zinc-100 truncate group-hover/user:text-violet-300 transition-colors">
+                        {firstName}
+                      </p>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                          role === "admin"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {role === "admin" ? "👑 Admin" : "Usuario"}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-zinc-400 truncate">
                       {user.email}
                     </p>

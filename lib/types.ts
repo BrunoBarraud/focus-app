@@ -92,3 +92,41 @@ export interface LifeExpectancyStats {
   targetAgeYears: number;
   senecaQuote: string;
 }
+
+// ==============================================================================
+// ROLES DE USUARIO Y SOPORTE & FEEDBACK
+// ==============================================================================
+
+export type UserRole = "admin" | "user";
+
+export type SupportFeedbackType =
+  | "suggestion"   // Sugerencia de nueva función
+  | "improvement"  // Mejora de diseño o experiencia de uso
+  | "bug"          // Reporte de error
+  | "question"     // Consulta de soporte
+  | "other";       // Otro
+
+export type SupportFeedbackStatus =
+  | "pending"      // Pendiente de revisión
+  | "in_review"    // En revisión / Analizando
+  | "resolved"     // Resuelto / Implementado
+  | "dismissed";   // Descartado
+
+export type SupportFeedbackPriority = "low" | "medium" | "high";
+
+export interface SupportFeedback {
+  id: string;
+  userId?: string;
+  userEmail: string;
+  userName: string;
+  type: SupportFeedbackType;
+  title: string;
+  description: string;
+  rating?: number; // 1 a 5 estrellas
+  priority: SupportFeedbackPriority;
+  status: SupportFeedbackStatus;
+  adminResponse?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

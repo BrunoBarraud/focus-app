@@ -9,6 +9,7 @@ import {
   Target,
   Timer,
   Sparkles,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,11 @@ export const NAV_ITEMS = [
     label: "Enfoque (Pomodoro)",
     href: "/enfoque",
     icon: Timer,
+  },
+  {
+    label: "Soporte & Feedback",
+    href: "/soporte",
+    icon: LifeBuoy,
   },
 ];
 

@@ -75,9 +75,22 @@ export function MobileNav() {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-100 truncate">
-                      {displayName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-zinc-100 truncate">
+                        {displayName}
+                      </p>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                          user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
+                          ? "👑 Admin"
+                          : "Usuario"}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-zinc-400 truncate">
                       {user.email}
                     </p>
