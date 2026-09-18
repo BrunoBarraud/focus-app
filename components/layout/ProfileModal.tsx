@@ -4,7 +4,7 @@ import * as React from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
-import { updateUserProfile, setUserRoleAction } from "@/app/actions";
+import { updateUserProfile, getCurrentUserRoleAction } from "@/app/actions";
 import { User, Calendar, Target, AlertCircle, Check, Crown, Shield } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -20,10 +20,10 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
+  const [email, setEmail] = React.useState("");
   const [fullName, setFullName] = React.useState("");
   const [birthDate, setBirthDate] = React.useState("1995-06-15");
   const [targetAge, setTargetAge] = React.useState(80);
-  const [email, setEmail] = React.useState("");
   const [userRole, setUserRole] = React.useState<"admin" | "user">("user");
 
   React.useEffect(() => {
@@ -34,20 +34,15 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
       setErrorMsg(null);
       setSuccessMsg(null);
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { user, role: fetchedRole } = await getCurrentUserRoleAction();
 
         if (user) {
           setEmail(user.email || "");
           const metaName = user.user_metadata?.full_name || "";
           const metaBirth = user.user_metadata?.birth_date || "";
-          const currentRole =
-            user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin"
-              ? "admin"
-              : "user";
-          setUserRole(currentRole);
+          setUserRole(fetchedRole);
+
+          const supabase = createClient();
 
           // Cargar settings desde Supabase
           const { data: settings } = await supabase

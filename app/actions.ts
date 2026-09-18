@@ -842,7 +842,7 @@ export async function toggleHabitLog(habitId: string, dateStr?: string) {
 // Lista de correos con privilegios de Administrador
 // Puedes configurar correos aquí o mediante la variable de entorno ADMIN_EMAILS (separados por coma)
 const DEFAULT_ADMIN_EMAILS: string[] = [
-  // Ejemplos o correos fijos:
+  "brunobarraud15@gmail.com",
 ];
 
 function getAdminEmails(): string[] {
@@ -868,7 +868,7 @@ export async function getCurrentUserRoleAction(): Promise<{
       return { user: null, role: "user", isAuthenticated: false };
     }
 
-    const userEmail = (user.email || "").toLowerCase();
+    const userEmail = (user.email || "").toLowerCase().trim();
 
     // 1. Consultar rol y asegurar email en la base de datos (public.user_settings)
     let dbRole: UserRole | null = null;
@@ -879,8 +879,13 @@ export async function getCurrentUserRoleAction(): Promise<{
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (settings?.role === "admin" || settings?.role === "user") {
-        dbRole = settings.role as UserRole;
+      if (settings?.role) {
+        const cleanRole = String(settings.role).trim().toLowerCase();
+        if (cleanRole === "admin") {
+          dbRole = "admin";
+        } else if (cleanRole === "user") {
+          dbRole = "user";
+        }
       }
 
       // Si aún no tenía el email registrado en user_settings, lo sincronizamos automáticamente

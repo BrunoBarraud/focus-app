@@ -5,36 +5,35 @@ import Link from "next/link";
 import { NavigationItems } from "./NavigationItems";
 import { Zap, Flame, User, LogOut, LogIn, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { logoutAction } from "@/app/actions";
+import { logoutAction, getCurrentUserRoleAction } from "@/app/actions";
 import { ProfileModal } from "./ProfileModal";
+import { UserRole } from "@/lib/types";
 
 export function Sidebar() {
   const [user, setUser] = React.useState<any>(null);
+  const [role, setRole] = React.useState<UserRole>("user");
   const [loading, setLoading] = React.useState(true);
   const [profileOpen, setProfileOpen] = React.useState(false);
 
   React.useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
+        const { user: currentUser, role: currentRole } = await getCurrentUserRoleAction();
+        setUser(currentUser);
+        setRole(currentRole);
       } catch {
         setUser(null);
+        setRole("user");
       } finally {
         setLoading(false);
       }
     }
-    getUser();
+    getUserData();
   }, []);
 
   const fullName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Invitado";
   const firstName = fullName.split(" ")[0];
-  const role: "admin" | "user" =
-    user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
-      ? "admin"
-      : "user";
 
   return (
     <>

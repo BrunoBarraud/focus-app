@@ -6,23 +6,26 @@ import { Sheet } from "@/components/ui/sheet";
 import { NavigationItems } from "./NavigationItems";
 import { Menu, Zap, User, LogOut, LogIn } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { logoutAction } from "@/app/actions";
+import { logoutAction, getCurrentUserRoleAction } from "@/app/actions";
+import { UserRole } from "@/lib/types";
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
+  const [role, setRole] = React.useState<UserRole>("user");
 
   React.useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
+        const { user: currentUser, role: currentRole } = await getCurrentUserRoleAction();
+        setUser(currentUser);
+        setRole(currentRole);
       } catch {
         setUser(null);
+        setRole("user");
       }
     }
-    getUser();
+    getUserData();
   }, [open]);
 
   const displayName =
@@ -81,14 +84,12 @@ export function MobileNav() {
                       </p>
                       <span
                         className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
-                          user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
+                          role === "admin"
                             ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                             : "bg-zinc-800 text-zinc-400"
                         }`}
                       >
-                        {user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin"
-                          ? "👑 Admin"
-                          : "Usuario"}
+                        {role === "admin" ? "👑 Admin" : "Usuario"}
                       </span>
                     </div>
                     <p className="text-[10px] text-zinc-400 truncate">
