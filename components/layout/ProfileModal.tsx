@@ -83,10 +83,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
         targetAge: Number(targetAge) || 80,
       });
 
-      // Actualizar rol
-      await setUserRoleAction(userRole);
-
-      setSuccessMsg("¡Perfil y rol actualizados con éxito!");
+      setSuccessMsg("¡Perfil actualizado con éxito!");
       router.refresh();
       setTimeout(() => {
         onOpenChange(false);
@@ -193,8 +190,8 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
             </div>
           </div>
 
-          {/* Rol de Usuario */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 space-y-2">
+          {/* Rol de Usuario (Lectura protegida) */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
                 <Crown className="h-3.5 w-3.5 text-amber-400" /> Rol en la Aplicación
@@ -203,40 +200,17 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                   userRole === "admin"
                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                    : "bg-zinc-800 text-zinc-400"
+                    : "bg-zinc-800 text-zinc-400 border border-zinc-700/50"
                 }`}
               >
                 {userRole === "admin" ? "👑 Administrador" : "👤 Usuario Común"}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-400 leading-tight">
-              Los administradores tienen acceso a la moderación global de soporte y feedback de todos los usuarios.
+            <p className="text-[11px] text-zinc-500 leading-tight">
+              {userRole === "admin"
+                ? "Tienes permisos de Administrador para moderar y responder tickets de soporte y feedback."
+                : "Rol estándar. Solo los correos designados como administradores tienen acceso al panel de moderación."}
             </p>
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setUserRole("user")}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                  userRole === "user"
-                    ? "bg-zinc-800 text-white border-zinc-700"
-                    : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-zinc-300"
-                }`}
-              >
-                Usuario Común
-              </button>
-              <button
-                type="button"
-                onClick={() => setUserRole("admin")}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  userRole === "admin"
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm"
-                    : "bg-zinc-900/50 text-zinc-500 border-zinc-800 hover:text-zinc-300"
-                }`}
-              >
-                <Crown className="h-3 w-3" />
-                Administrador
-              </button>
-            </div>
           </div>
 
           <div className="pt-3 flex items-center justify-end gap-2 border-t border-zinc-800/80">

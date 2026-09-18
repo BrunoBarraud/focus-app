@@ -837,7 +837,18 @@ export async function toggleHabitLog(habitId: string, dateStr?: string) {
 
 // ==============================================================================
 // 9. ROLES DE USUARIO Y SISTEMA DE SOPORTE & FEEDBACK
-// ==============================================================================
+// Lista de correos con privilegios de Administrador
+// Puedes configurar correos aquí o mediante la variable de entorno ADMIN_EMAILS (separados por coma)
+const DEFAULT_ADMIN_EMAILS: string[] = [
+  // Ejemplos o correos fijos:
+];
+
+function getAdminEmails(): string[] {
+  const envEmails = process.env.ADMIN_EMAILS 
+    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()) 
+    : [];
+  return [...DEFAULT_ADMIN_EMAILS.map((e) => e.toLowerCase()), ...envEmails].filter(Boolean);
+}
 
 /**
  * Server Action: Obtener el rol y datos del usuario actual
@@ -855,10 +866,14 @@ export async function getCurrentUserRoleAction(): Promise<{
       return { user: null, role: "user", isAuthenticated: false };
     }
 
-    const role: UserRole =
-      user.user_metadata?.role === "admin" || user.app_metadata?.role === "admin"
-        ? "admin"
-        : "user";
+    const adminEmails = getAdminEmails();
+    const userEmail = (user.email || "").toLowerCase();
+
+    const isEmailAdmin = adminEmails.includes(userEmail);
+    const isAppMetadataAdmin = user.app_metadata?.role === "admin";
+    const isUserMetadataAdmin = user.user_metadata?.role === "admin";
+
+    const role: UserRole = (isEmailAdmin || isAppMetadataAdmin || isUserMetadataAdmin) ? "admin" : "user";
 
     return { user, role, isAuthenticated: true };
   } catch (err) {
@@ -868,7 +883,7 @@ export async function getCurrentUserRoleAction(): Promise<{
 }
 
 /**
- * Server Action: Asignar o cambiar el rol de usuario (admin o user)
+ * Server Action: Asignar o cambiar el rol de usuario (solo ejecutable por un Administrador)
  */
 export async function setUserRoleAction(targetRole: UserRole) {
   try {
@@ -876,7 +891,19 @@ export async function setUserRoleAction(targetRole: UserRole) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { error: "Debes iniciar sesión para cambiar de rol." };
+      return { error: "Debes iniciar sesión para realizar esta acción." };
+    }
+
+    // Verificar si quien intenta cambiar el rol es realmente admin
+    const adminEmails = getAdminEmails();
+    const userEmail = (user.email || "").toLowerCase();
+    const isCallerAdmin = 
+      adminEmails.includes(userEmail) || 
+      user.app_metadata?.role === "admin" || 
+      user.user_metadata?.role === "admin";
+
+    if (!isCallerAdmin) {
+      return { error: "No tienes permisos de Administrador para asignar o modificar roles." };
     }
 
     const { data, error } = await supabase.auth.updateUser({
