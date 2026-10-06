@@ -1193,5 +1193,4 @@ export async function deleteFeedbackAction(feedbackId: string) {
     return { error: err.message || "Error al eliminar feedback." };
   }
 }
-
->>>>>>> origin/main
+}
