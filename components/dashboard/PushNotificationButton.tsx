@@ -40,8 +40,11 @@ export function PushNotificationButton() {
         return;
       }
 
-      const reg = await navigator.serviceWorker.ready;
-      
+      let reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js");
+      }
+      await navigator.serviceWorker.ready;
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
         console.error("No VAPID public key found in env");
