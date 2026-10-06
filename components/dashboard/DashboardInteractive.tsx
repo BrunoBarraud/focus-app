@@ -1,18 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Habit, PlannerTask, Goal, MorningRitual } from "@/lib/types";
+import { Habit, PlannerTask, Goal, MorningRitual, Calendar } from "@/lib/types";
 import { HabitTrackerMatrix } from "./HabitTrackerMatrix";
 import { WeeklyMonthlyPlanner } from "./WeeklyMonthlyPlanner";
 import { EditablePomodoro } from "./EditablePomodoro";
 import { InlineMorningRitual } from "./InlineMorningRitual";
 import { FluidGoalsList } from "./FluidGoalsList";
+import { PushNotificationButton } from "./PushNotificationButton";
 import { Sparkles, ArrowRight, UserCheck, ShieldCheck, Flame, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 interface DashboardInteractiveProps {
   initialHabits: Habit[];
   initialTasks: PlannerTask[];
+  initialCalendars: Calendar[];
   initialGoals: Goal[];
   initialRitual: MorningRitual;
   userName: string;
@@ -22,6 +24,7 @@ interface DashboardInteractiveProps {
 export function DashboardInteractive({
   initialHabits,
   initialTasks,
+  initialCalendars,
   initialGoals,
   initialRitual,
   userName,
@@ -56,6 +59,8 @@ export function DashboardInteractive({
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
+          {userEmail && <PushNotificationButton />}
+          
           {!userEmail ? (
             <Link
               href="/login"
@@ -82,7 +87,7 @@ export function DashboardInteractive({
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Organizador Semanal y Mensual (7 columnas en desktop) */}
         <div className="lg:col-span-7">
-          <WeeklyMonthlyPlanner initialTasks={initialTasks} />
+          <WeeklyMonthlyPlanner initialTasks={initialTasks} initialCalendars={initialCalendars} />
         </div>
 
         {/* Focus Mode Pomodoro + Ritual Matutino (5 columnas en desktop) */}

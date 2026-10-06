@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "Focus • Sistema de Productividad & Crecimiento Personal",
   description:
     "Aplicación integral de hábitos, enfoque profundo, planificación semanal y metas de vida en Dark Mode.",
+  manifest: "/manifest.json",
   openGraph: {
     title: "Focus • Productividad & Crecimiento Personal",
     description: "Tu sistema integral de hábitos, enfoque y metas de vida.",

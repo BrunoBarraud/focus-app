@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PlannerTask, WeekDay } from "@/lib/types";
+import { PlannerTask, WeekDay, Calendar } from "@/lib/types";
 import { addTaskAction, deleteTaskAction, toggleTaskAction } from "@/app/actions";
 import {
   Calendar as CalendarIcon,
@@ -17,8 +17,17 @@ import {
 } from "lucide-react";
 
 interface WeeklyMonthlyPlannerProps {
-  initialTasks: PlannerTask[];
+  initialTasks: PlannerTask[]; // mapped to calendar_events
+  initialCalendars: Calendar[];
 }
+
+const MOCK_COLORS = [
+  "bg-violet-500 text-white",
+  "bg-emerald-500 text-white",
+  "bg-blue-500 text-white",
+  "bg-rose-500 text-white",
+  "bg-amber-500 text-white",
+];
 
 const WEEK_DAYS: { key: WeekDay; name: string; short: string; dateNum: number }[] = [
   { key: "L", name: "Lunes", short: "Lun", dateNum: 14 },
@@ -36,27 +45,49 @@ const PRIORITY_BADGES = {
   low: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
 };
 
-export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps) {
+export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyMonthlyPlannerProps) {
   const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
   const [selectedDay, setSelectedDay] = React.useState<WeekDay>("X"); // Miércoles 16 por defecto
   const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
   const [selectedMonthDay, setSelectedMonthDay] = React.useState<number>(16);
 
+  // Calendarios
+  const [selectedCalendar, setSelectedCalendar] = React.useState<string>("all");
+
   // Formulario inline rápido
   const [newTaskTitle, setNewTaskTitle] = React.useState("");
   const [newTaskPriority, setNewTaskPriority] = React.useState<"high" | "medium" | "low">("medium");
-  const [newTaskMinutes, setNewTaskMinutes] = React.useState(30);
+  const [newTaskStartTime, setNewTaskStartTime] = React.useState("");
   const [newTaskTag, setNewTaskTag] = React.useState("Enfoque");
+
+  // Combinar calendarios de BD con la opción "Todos"
+  const viewCalendars = React.useMemo(() => {
+    const allOpt = { id: "all", name: "Todos los Calendarios", color: "bg-white text-zinc-950" };
+    const mapped = (initialCalendars || []).map((cal, i) => ({
+      id: cal.id,
+      name: cal.name,
+      color: MOCK_COLORS[i % MOCK_COLORS.length],
+    }));
+    return [allOpt, ...mapped];
+  }, [initialCalendars]);
 
   // Sincronizar estado cuando el Server Component revalida
   React.useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
 
-  // Filtrar tareas según el día seleccionado en modo semana
+  // Filtrar tareas según el día seleccionado y el calendario
   const dayTasks = React.useMemo(() => {
-    return tasks.filter((t) => t.day === selectedDay);
-  }, [tasks, selectedDay]);
+    return tasks.filter((t) => {
+      const dayMatch = t.day === selectedDay;
+      const calMatch = selectedCalendar === "all" || t.calendar_id === selectedCalendar;
+      return dayMatch && calMatch;
+    }).sort((a, b) => {
+      if (!a.start_time) return 1;
+      if (!b.start_time) return -1;
+      return a.start_time.localeCompare(b.start_time);
+    });
+  }, [tasks, selectedDay, selectedCalendar]);
 
   // Alternar estado de completitud con Server Action y rollback
   const handleToggleTask = async (taskId: string) => {
@@ -89,21 +120,25 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
       title: newTaskTitle.trim(),
       day: selectedDay,
       priority: newTaskPriority,
-      estimatedMinutes: newTaskMinutes,
+      estimatedMinutes: 30,
+      start_time: newTaskStartTime || undefined,
+      calendar_id: selectedCalendar !== "all" ? selectedCalendar : undefined,
       completed: false,
       tag: newTaskTag,
     };
 
     setTasks((prev) => [...prev, tempTask]);
     setNewTaskTitle("");
+    setNewTaskStartTime("");
 
     try {
       const res = await addTaskAction({
         title: tempTask.title,
         day: tempTask.day,
         priority: tempTask.priority,
-        estimatedMinutes: tempTask.estimatedMinutes,
         completed: false,
+        start_time: tempTask.start_time,
+        calendar_id: tempTask.calendar_id,
         tag: tempTask.tag,
       });
 
@@ -182,6 +217,23 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
               Ver Mes
             </button>
           </div>
+        </div>
+
+        {/* Tabs Horizontales de Calendarios */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2 scrollbar-none border-b border-white/[0.06]">
+          {viewCalendars.map((cal) => (
+            <button
+              key={cal.id}
+              onClick={() => setSelectedCalendar(cal.id)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap cursor-pointer ${
+                selectedCalendar === cal.id
+                  ? cal.color + " shadow-md"
+                  : "bg-zinc-900/50 text-zinc-400 border border-white/[0.05] hover:bg-zinc-800"
+              }`}
+            >
+              {cal.name}
+            </button>
+          ))}
         </div>
 
         {/* 1. VISTA SEMANA: Slider horizontal interactivo con días */}
@@ -282,16 +334,17 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {task.start_time && (
+                          <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded-md border border-white/[0.05]">
+                            {task.start_time} {task.end_time ? `- ${task.end_time}` : ""}
+                          </span>
+                        )}
                         <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase hidden sm:inline-flex ${
                             PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
                           }`}
                         >
                           {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 hidden sm:inline-flex items-center gap-0.5">
-                          <Clock className="h-3 w-3" />
-                          {task.estimatedMinutes}m
                         </span>
                         <button
                           type="button"
@@ -307,26 +360,33 @@ export function WeeklyMonthlyPlanner({ initialTasks }: WeeklyMonthlyPlannerProps
               </div>
 
               {/* Formulario Inline rápido para agregar tareas */}
-              <form onSubmit={handleAddTask} className="pt-2 flex items-center gap-2">
+              <form onSubmit={handleAddTask} className="pt-2 flex flex-col sm:flex-row items-center gap-2">
                 <input
                   type="text"
-                  placeholder={`+ Nueva tarea para ${
-                    WEEK_DAYS.find((d) => d.key === selectedDay)?.short
-                  }... presiona Enter`}
+                  placeholder={`+ Nueva tarea o evento...`}
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="flex-1 bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+                  className="flex-1 w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
                 />
 
-                <select
-                  value={newTaskPriority}
-                  onChange={(e) => setNewTaskPriority(e.target.value as any)}
-                  className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
-                >
-                  <option value="high">Alta</option>
-                  <option value="medium">Media</option>
-                  <option value="low">Baja</option>
-                </select>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <input
+                    type="time"
+                    value={newTaskStartTime}
+                    onChange={(e) => setNewTaskStartTime(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 w-24"
+                  />
+                  
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value as any)}
+                    className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
+                  >
+                    <option value="high">Alta</option>
+                    <option value="medium">Media</option>
+                    <option value="low">Baja</option>
+                  </select>
+                </div>
 
                 <button
                   type="submit"

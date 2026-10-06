@@ -297,7 +297,8 @@ export async function addTaskAction(task: {
   title: string;
   day: WeekDay;
   priority: "high" | "medium" | "low";
-  estimatedMinutes: number;
+  start_time?: string;
+  calendar_id?: string;
   completed?: boolean;
   tag: string;
 }) {
@@ -310,14 +311,27 @@ export async function addTaskAction(task: {
     return { error: "Usuario no autenticado." };
   }
 
+  // Si no viene calendar_id, buscamos o creamos un calendario "General"
+  let targetCalendarId = task.calendar_id;
+  if (!targetCalendarId || targetCalendarId === "all") {
+    const { data: cals } = await supabase.from("calendars").select("id").eq("user_id", user.id).limit(1);
+    if (cals && cals.length > 0) {
+      targetCalendarId = cals[0].id;
+    } else {
+      const { data: newCal } = await supabase.from("calendars").insert({ user_id: user.id, name: "General" }).select().single();
+      targetCalendarId = newCal?.id;
+    }
+  }
+
   const { data: newTask, error } = await supabase
-    .from("tasks")
+    .from("calendar_events")
     .insert({
       user_id: user.id,
+      calendar_id: targetCalendarId,
       title: task.title,
-      day_of_week: task.day,
+      days_of_week: [task.day],
       priority: task.priority,
-      estimated_minutes: task.estimatedMinutes,
+      start_time: task.start_time || null,
       status: task.completed ? "completed" : "pending",
       tag: task.tag,
     })
@@ -349,7 +363,7 @@ export async function toggleTaskAction(taskId: string) {
   }
 
   const { data: task, error: fetchErr } = await supabase
-    .from("tasks")
+    .from("calendar_events")
     .select("status")
     .eq("id", taskId)
     .eq("user_id", user.id)
@@ -361,7 +375,7 @@ export async function toggleTaskAction(taskId: string) {
 
   const nextStatus = task.status === "completed" ? "pending" : "completed";
   const { error: updateErr } = await supabase
-    .from("tasks")
+    .from("calendar_events")
     .update({ status: nextStatus })
     .eq("id", taskId)
     .eq("user_id", user.id);
@@ -391,7 +405,7 @@ export async function deleteTaskAction(taskId: string) {
   }
 
   const { error } = await supabase
-    .from("tasks")
+    .from("calendar_events")
     .delete()
     .eq("id", taskId)
     .eq("user_id", user.id);
@@ -750,5 +764,38 @@ export async function toggleHabitLog(habitId: string, dateStr?: string) {
   revalidatePath("/", "layout");
   revalidatePath("/dashboard", "layout");
   revalidatePath("/habitos", "layout");
+  return { success: true };
+}
+
+// ==============================================================================
+// 7. NOTIFICACIONES PUSH
+// ==============================================================================
+
+export async function savePushSubscriptionAction(subscription: any) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Usuario no autenticado." };
+  }
+
+  // Guardar o actualizar la suscripción por endpoint
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert(
+      {
+        user_id: user.id,
+        endpoint: subscription.endpoint,
+        auth_key: subscription.keys.auth,
+        p256dh_key: subscription.keys.p256dh,
+      },
+      { onConflict: "user_id, endpoint" }
+    );
+
+  if (error) {
+    console.error("Error guardando suscripción push:", error.message);
+    return { error: error.message };
+  }
+
   return { success: true };
 }

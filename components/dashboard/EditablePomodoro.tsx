@@ -20,23 +20,45 @@ export function EditablePomodoro() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  // Sonido con Web Audio API
-  const playBeep = () => {
-    if (!soundEnabled || typeof window === "undefined") return;
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.8);
-    } catch {
-      // Ignorar error de audio si no está soportado
+  // Notificaciones y Sonido con Web Audio API
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  const triggerAlarm = () => {
+    if (typeof window === "undefined") return;
+    
+    // 1. Notificación Nativa
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Tiempo terminado", {
+        body: mode === "focus" 
+          ? "¡Excelente sesión de hiperenfoque! Es hora de un descanso." 
+          : "Descanso terminado. ¿Listo para volver al foco?",
+        icon: "/icon.jpg",
+      });
+    }
+
+    // 2. Alarma HTML5 Audio
+    if (soundEnabled) {
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+      } catch {
+        // Ignorar error de audio si no está soportado
+      }
     }
   };
 
@@ -49,13 +71,13 @@ export function EditablePomodoro() {
       }, 1000);
     } else if (isRunning && timeLeft === 0) {
       setIsRunning(false);
-      playBeep();
+      triggerAlarm();
       if (mode === "focus") {
         setSessionsCompleted((c) => c + 1);
       }
     }
     return () => clearInterval(interval);
-  }, [isRunning, timeLeft, mode]);
+  }, [isRunning, timeLeft, mode, soundEnabled]);
 
   // Cambiar modo con presets
   const handleSetMode = (newMode: "focus" | "short_break" | "long_break", mins: number) => {

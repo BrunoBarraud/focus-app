@@ -27,15 +27,24 @@ export interface Habit {
   iconName?: string;
 }
 
+export interface Calendar {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export type WeekDay = "L" | "M" | "X" | "J" | "V" | "S" | "D";
 
 export interface PlannerTask {
   id: string;
+  calendar_id?: string;
   title: string;
   description?: string;
   day: WeekDay;
+  start_time?: string;
+  end_time?: string;
   priority: "high" | "medium" | "low";
-  estimatedMinutes: number;
+  estimatedMinutes?: number;
   completed: boolean;
   tag: string;
 }

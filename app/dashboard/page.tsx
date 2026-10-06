@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createClient } from "@/utils/supabase/server";
 import { DashboardInteractive } from "@/components/dashboard/DashboardInteractive";
-import { Habit, PlannerTask, Goal, MorningRitual, HabitCategory, WeekDay } from "@/lib/types";
+import { Habit, PlannerTask, Goal, MorningRitual, HabitCategory, WeekDay, Calendar } from "@/lib/types";
 import { calculateStreak, getDaysInMonth } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -51,44 +51,8 @@ export default async function HomePage() {
     },
   ];
 
-  let tasksData: PlannerTask[] = [
-    {
-      id: "t-1",
-      title: "Revisión estratégica de objetivos del trimestre",
-      day: "X",
-      priority: "high",
-      estimatedMinutes: 45,
-      completed: false,
-      tag: "Estrategia",
-    },
-    {
-      id: "t-2",
-      title: "Bloque de código y refactorización UI",
-      day: "X",
-      priority: "high",
-      estimatedMinutes: 60,
-      completed: true,
-      tag: "Desarrollo",
-    },
-    {
-      id: "t-3",
-      title: "Planificación semanal de sprint y métricas",
-      day: "L",
-      priority: "medium",
-      estimatedMinutes: 30,
-      completed: true,
-      tag: "Organización",
-    },
-    {
-      id: "t-4",
-      title: "Caminata de desconexión sin pantalla",
-      day: "X",
-      priority: "low",
-      estimatedMinutes: 30,
-      completed: false,
-      tag: "Salud",
-    },
-  ];
+  let tasksData: PlannerTask[] = [];
+  let calendarsData: Calendar[] = [];
 
   let goalsData: Goal[] = [
     {
@@ -222,21 +186,32 @@ export default async function HomePage() {
         });
       }
 
-      // 3. Tareas
-      const { data: userTasks } = await supabase
-        .from("tasks")
+      // 3. Calendarios y Eventos
+      const { data: dbCalendars } = await supabase
+        .from("calendars")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (dbCalendars) {
+        calendarsData = dbCalendars;
+      }
+
+      const { data: userEvents } = await supabase
+        .from("calendar_events")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
 
-      if (userTasks) {
-        tasksData = userTasks.map((t: any) => ({
+      if (userEvents) {
+        tasksData = userEvents.map((t: any) => ({
           id: t.id,
+          calendar_id: t.calendar_id,
           title: t.title,
           description: t.description || "",
-          day: (t.day_of_week as WeekDay) || "X",
+          day: (t.days_of_week && t.days_of_week[0]) || "X",
+          start_time: t.start_time?.substring(0, 5) || undefined,
+          end_time: t.end_time?.substring(0, 5) || undefined,
           priority: (t.priority as any) || "medium",
-          estimatedMinutes: t.estimated_minutes || 30,
           completed: t.status === "completed",
           tag: t.tag || "General",
         }));
@@ -272,6 +247,7 @@ export default async function HomePage() {
     <DashboardInteractive
       initialHabits={habitsData}
       initialTasks={tasksData}
+      initialCalendars={calendarsData}
       initialGoals={goalsData}
       initialRitual={ritualData}
       userName={userName}
