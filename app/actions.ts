@@ -1210,4 +1210,3 @@ export async function addCalendarAction(name: string, color: string) {
   revalidatePath("/", "layout");
   return { success: true };
 }
-
