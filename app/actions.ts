@@ -1202,8 +1202,7 @@ export async function addCalendarAction(name: string, color: string) {
   const { error } = await supabase.from("calendars").insert({
     user_id: user.id,
     name,
-    color,
-    is_default: false
+    color
   });
   
   if (error) return { error: error.message };
