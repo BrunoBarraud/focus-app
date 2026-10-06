@@ -44,8 +44,11 @@ export async function GET(request: Request) {
       // Ajuste rápido: asume que la hora ingresada es la hora local (America/Argentina/Buenos_Aires UTC-3)
       const eventTime = new Date(now);
       eventTime.setUTCHours(hours + 3, minutes, 0, 0);
+      
+      const nowRounded = new Date(now);
+      nowRounded.setUTCSeconds(0, 0);
 
-      const diffMinutes = Math.round((eventTime.getTime() - now.getTime()) / 60000);
+      const diffMinutes = Math.round((eventTime.getTime() - nowRounded.getTime()) / 60000);
 
       // Si faltan exactamente 30, 15 o 5 minutos
       return diffMinutes === 30 || diffMinutes === 15 || diffMinutes === 5;
