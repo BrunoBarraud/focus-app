@@ -29,15 +29,46 @@ const MOCK_COLORS = [
   "bg-amber-500 text-white",
 ];
 
-const WEEK_DAYS: { key: WeekDay; name: string; short: string; dateNum: number }[] = [
-  { key: "L", name: "Lunes", short: "Lun", dateNum: 14 },
-  { key: "M", name: "Martes", short: "Mar", dateNum: 15 },
-  { key: "X", name: "Miércoles", short: "Mié", dateNum: 16 }, // Hoy
-  { key: "J", name: "Jueves", short: "Jue", dateNum: 17 },
-  { key: "V", name: "Viernes", short: "Vie", dateNum: 18 },
-  { key: "S", name: "Sábado", short: "Sáb", dateNum: 19 },
-  { key: "D", name: "Domingo", short: "Dom", dateNum: 20 },
-];
+function getCurrentDateInfo() {
+  const today = new Date();
+  
+  // Semana actual
+  const dayOfWeek = today.getDay(); // 0 is Sunday
+  const distanceToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - distanceToMonday);
+
+  const keys: WeekDay[] = ["L", "M", "X", "J", "V", "S", "D"];
+  const names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const shorts = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+  const weekDays = keys.map((key, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return {
+      key,
+      name: names[i],
+      short: shorts[i],
+      dateNum: d.getDate(),
+      isToday: d.toDateString() === today.toDateString()
+    };
+  });
+
+  // Mes actual
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthName = today.toLocaleString("es-ES", { month: "long", year: "numeric" });
+  const formattedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const startingEmptyCells = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+
+  const currentDay = today.getDate();
+  const todayKey = weekDays.find(d => d.isToday)?.key || "L";
+
+  return { weekDays, daysInMonth, startingEmptyCells, formattedMonthName, currentDay, todayKey };
+}
 
 const PRIORITY_BADGES = {
   high: "bg-rose-500/10 text-rose-400 border-rose-500/20",
@@ -46,10 +77,12 @@ const PRIORITY_BADGES = {
 };
 
 export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyMonthlyPlannerProps) {
+  const dateInfo = React.useMemo(() => getCurrentDateInfo(), []);
+  
   const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
-  const [selectedDay, setSelectedDay] = React.useState<WeekDay>("X"); // Miércoles 16 por defecto
+  const [selectedDay, setSelectedDay] = React.useState<WeekDay>(dateInfo.todayKey);
   const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
-  const [selectedMonthDay, setSelectedMonthDay] = React.useState<number>(16);
+  const [selectedMonthDay, setSelectedMonthDay] = React.useState<number>(dateInfo.currentDay);
 
   // Calendarios
   const [selectedCalendar, setSelectedCalendar] = React.useState<string>("all");
@@ -173,8 +206,8 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
     }
   };
 
-  // Datos para vista mensual compacta (30/31 días)
-  const monthDays = React.useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), []);
+  // Datos para vista mensual compacta
+  const monthDays = React.useMemo(() => Array.from({ length: dateInfo.daysInMonth }, (_, i) => i + 1), [dateInfo.daysInMonth]);
 
   return (
     <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between">
@@ -190,7 +223,9 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
                 Organizador Inteligente
               </h2>
               <p className="text-xs text-zinc-400">
-                {viewMode === "week" ? "Semana en curso • Mié 16 (Hoy)" : "Calendario del Mes • Septiembre"}
+                {viewMode === "week" 
+                  ? `Semana en curso • ${dateInfo.weekDays.find(d => d.isToday)?.short || ""} ${dateInfo.currentDay} (Hoy)` 
+                  : `Calendario del Mes • ${dateInfo.formattedMonthName}`}
               </p>
             </div>
           </div>
@@ -241,9 +276,9 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
           <div className="space-y-4">
             {/* Slider de Días de la Semana */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {WEEK_DAYS.map((d) => {
+              {dateInfo.weekDays.map((d) => {
                 const isSelected = selectedDay === d.key;
-                const isToday = d.dateNum === 16;
+                const isToday = d.isToday;
                 const tasksForDay = tasks.filter((t) => t.day === d.key);
                 const completedCount = tasksForDay.filter((t) => t.completed).length;
 
@@ -411,11 +446,14 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
             </div>
 
             <div className="grid grid-cols-7 gap-1.5">
+              {Array.from({ length: dateInfo.startingEmptyCells }).map((_, i) => (
+                <div key={`empty-${i}`} className="h-12 border border-transparent" />
+              ))}
               {monthDays.map((d) => {
-                const isToday = d === 16;
+                const isToday = d === dateInfo.currentDay;
                 const isSelected = selectedMonthDay === d;
-                const dayMod = (d - 1) % 7;
-                const dayKey = WEEK_DAYS[dayMod]?.key || "L";
+                const dayMod = (d - 1 + dateInfo.startingEmptyCells) % 7;
+                const dayKey = dateInfo.weekDays[dayMod]?.key || "L";
                 const dayCount = tasks.filter((t) => t.day === dayKey).length;
 
                 return (
