@@ -325,8 +325,8 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
               <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-white/[0.06] pb-2">
                 <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
                   <ListTodo className="h-3.5 w-3.5 text-violet-400" />
-                  Tareas para {WEEK_DAYS.find((d) => d.key === selectedDay)?.name}{" "}
-                  {WEEK_DAYS.find((d) => d.key === selectedDay)?.dateNum}
+                  Tareas para {dateInfo.weekDays.find((d) => d.key === selectedDay)?.name}{" "}
+                  {dateInfo.weekDays.find((d) => d.key === selectedDay)?.dateNum}
                 </span>
                 <span>{dayTasks.length} planificadas</span>
               </div>
