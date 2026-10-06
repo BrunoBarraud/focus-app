@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { PlannerTask, WeekDay, Calendar } from "@/lib/types";
-import { addTaskAction, deleteTaskAction, toggleTaskAction } from "@/app/actions";
+import { addTaskAction, deleteTaskAction, toggleTaskAction, addCalendarAction } from "@/app/actions";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ListTodo,
+  X,
+  Loader2,
 } from "lucide-react";
 
 interface WeeklyMonthlyPlannerProps {
@@ -91,6 +93,11 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
   const [newTaskTitle, setNewTaskTitle] = React.useState("");
   const [newTaskPriority, setNewTaskPriority] = React.useState<"high" | "medium" | "low">("medium");
   const [newTaskStartTime, setNewTaskStartTime] = React.useState("");
+
+  // Añadir calendario
+  const [isAddingCalendar, setIsAddingCalendar] = React.useState(false);
+  const [newCalendarName, setNewCalendarName] = React.useState("");
+  const [isPendingCalendar, setIsPendingCalendar] = React.useState(false);
   const [newTaskTag, setNewTaskTag] = React.useState("Enfoque");
 
   // Combinar calendarios de BD con la opción "Todos"
@@ -206,6 +213,23 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
     }
   };
 
+  const handleAddCalendar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCalendarName.trim()) return;
+
+    setIsPendingCalendar(true);
+    const randomColor = MOCK_COLORS[Math.floor(Math.random() * MOCK_COLORS.length)];
+    
+    const res = await addCalendarAction(newCalendarName, randomColor);
+    if (!res.error) {
+      setNewCalendarName("");
+      setIsAddingCalendar(false);
+    } else {
+      alert("Error: " + res.error);
+    }
+    setIsPendingCalendar(false);
+  };
+
   // Datos para vista mensual compacta
   const monthDays = React.useMemo(() => Array.from({ length: dateInfo.daysInMonth }, (_, i) => i + 1), [dateInfo.daysInMonth]);
 
@@ -269,6 +293,47 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
               {cal.name}
             </button>
           ))}
+
+          {/* Formulario/Botón para añadir nuevo calendario */}
+          {isAddingCalendar ? (
+            <form 
+              onSubmit={handleAddCalendar}
+              className="flex items-center gap-1 min-w-[150px] shrink-0"
+            >
+              <input
+                autoFocus
+                type="text"
+                placeholder="Nombre..."
+                value={newCalendarName}
+                onChange={(e) => setNewCalendarName(e.target.value)}
+                className="bg-zinc-900 border border-zinc-700/80 rounded-full px-3 py-1 text-xs text-white focus:outline-none focus:border-violet-500 w-24"
+                disabled={isPendingCalendar}
+              />
+              <button 
+                type="submit"
+                disabled={isPendingCalendar}
+                className="bg-violet-600 text-white rounded-full p-1.5 hover:bg-violet-500 transition-colors"
+              >
+                {isPendingCalendar ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+              </button>
+              <button 
+                type="button"
+                onClick={() => setIsAddingCalendar(false)}
+                className="bg-zinc-800 text-zinc-400 rounded-full p-1.5 hover:text-white transition-colors"
+                disabled={isPendingCalendar}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setIsAddingCalendar(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-full border border-dashed border-white/20 text-zinc-400 hover:text-white hover:border-white/40 transition-all whitespace-nowrap shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo
+            </button>
+          )}
         </div>
 
         {/* 1. VISTA SEMANA: Slider horizontal interactivo con días */}

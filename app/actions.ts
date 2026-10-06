@@ -6,18 +6,18 @@ import { redirect } from "next/navigation";
 import { HabitCategory, WeekDay, MorningRitual, PlannerTask, Goal, UserRole, SupportFeedback, SupportFeedbackType, SupportFeedbackStatus, SupportFeedbackPriority } from "@/lib/types";
 
 // ==============================================================================
-// 1. AUTENTICACIÓN
+// 1. AUTENTICACIÃ“N
 // ==============================================================================
 
 /**
- * Server Action: Iniciar Sesión
+ * Server Action: Iniciar SesiÃ³n
  */
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   if (!email || !password) {
-    return { error: "Por favor ingresa correo y contraseña." };
+    return { error: "Por favor ingresa correo y contraseÃ±a." };
   }
 
   const supabase = await createClient();
@@ -75,7 +75,7 @@ export async function signupAction(formData: FormData) {
       role: "user",
       birth_date: birthDate,
       target_age: 80,
-      daily_mission: `Propósito personal de ${fullName}`,
+      daily_mission: `PropÃ³sito personal de ${fullName}`,
       daily_pillar: "Disciplina & Presencia",
       daily_frog: "Completar la prioridad absoluta de hoy",
       energy_level: "high",
@@ -91,7 +91,7 @@ export async function signupAction(formData: FormData) {
       },
       {
         user_id: data.user.id,
-        title: "Ejercicio Físico o Caminata",
+        title: "Ejercicio FÃ­sico o Caminata",
         category: "cuerpo",
         monthly_target_days: 20,
         color: "#f97316",
@@ -112,7 +112,7 @@ export async function signupAction(formData: FormData) {
 }
 
 /**
- * Server Action: Cerrar Sesión
+ * Server Action: Cerrar SesiÃ³n
  */
 export async function logoutAction() {
   const supabase = await createClient();
@@ -123,11 +123,11 @@ export async function logoutAction() {
 }
 
 // ==============================================================================
-// 2. HÁBITOS (MUTACIONES CON REVALIDACIÓN DE CACHÉ)
+// 2. HÃBITOS (MUTACIONES CON REVALIDACIÃ“N DE CACHÃ‰)
 // ==============================================================================
 
 /**
- * Server Action: Agregar un nuevo hábito
+ * Server Action: Agregar un nuevo hÃ¡bito
  */
 export async function addHabitAction(data: {
   name: string;
@@ -141,7 +141,7 @@ export async function addHabitAction(data: {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Debes iniciar sesión para crear hábitos." };
+    return { error: "Debes iniciar sesiÃ³n para crear hÃ¡bitos." };
   }
 
   const { data: newHabit, error } = await supabase
@@ -157,7 +157,7 @@ export async function addHabitAction(data: {
     .single();
 
   if (error) {
-    console.error("Error al crear hábito en Supabase:", error.message);
+    console.error("Error al crear hÃ¡bito en Supabase:", error.message);
     return { error: error.message };
   }
 
@@ -168,7 +168,7 @@ export async function addHabitAction(data: {
 }
 
 /**
- * Server Action: Actualizar título de un hábito
+ * Server Action: Actualizar tÃ­tulo de un hÃ¡bito
  */
 export async function updateHabitTitleAction(habitId: string, newTitle: string) {
   const supabase = await createClient();
@@ -187,7 +187,7 @@ export async function updateHabitTitleAction(habitId: string, newTitle: string) 
     .eq("user_id", user.id);
 
   if (error) {
-    console.error("Error al actualizar título del hábito:", error.message);
+    console.error("Error al actualizar tÃ­tulo del hÃ¡bito:", error.message);
     return { error: error.message };
   }
 
@@ -198,7 +198,7 @@ export async function updateHabitTitleAction(habitId: string, newTitle: string) 
 }
 
 /**
- * Server Action: Eliminar un hábito
+ * Server Action: Eliminar un hÃ¡bito
  */
 export async function deleteHabitAction(habitId: string) {
   const supabase = await createClient();
@@ -217,7 +217,7 @@ export async function deleteHabitAction(habitId: string) {
     .eq("user_id", user.id);
 
   if (error) {
-    console.error("Error al eliminar hábito de Supabase:", error.message);
+    console.error("Error al eliminar hÃ¡bito de Supabase:", error.message);
     return { error: error.message };
   }
 
@@ -228,7 +228,7 @@ export async function deleteHabitAction(habitId: string) {
 }
 
 /**
- * Server Action: Alternar el cumplimiento de un hábito en un día del mes
+ * Server Action: Alternar el cumplimiento de un hÃ¡bito en un dÃ­a del mes
  */
 export async function toggleHabitDayAction(habitId: string, day: number) {
   const supabase = await createClient();
@@ -255,7 +255,7 @@ export async function toggleHabitDayAction(habitId: string, day: number) {
     .maybeSingle();
 
   if (fetchErr) {
-    console.error("Error al buscar registro de hábito:", fetchErr.message);
+    console.error("Error al buscar registro de hÃ¡bito:", fetchErr.message);
     return { error: fetchErr.message };
   }
 
@@ -289,7 +289,7 @@ export async function toggleHabitDayAction(habitId: string, day: number) {
 }
 
 // ==============================================================================
-// 3. TAREAS (ORGANIZADOR INTELIGENTE CON REVALIDACIÓN)
+// 3. TAREAS (ORGANIZADOR INTELIGENTE CON REVALIDACIÃ“N)
 // ==============================================================================
 
 function parseTaskTimeAndDesc(rawDesc?: string): { scheduledTime?: string; cleanDescription?: string } {
@@ -307,7 +307,7 @@ function parseTaskTimeAndDesc(rawDesc?: string): { scheduledTime?: string; clean
 }
 
 /**
- * Server Action: Agregar una nueva tarea o reunión con horario
+ * Server Action: Agregar una nueva tarea o reuniÃ³n con horario
  */
 export async function addTaskAction(task: {
   title: string;
@@ -450,7 +450,7 @@ export async function deleteTaskAction(taskId: string) {
 }
 
 /**
- * Server Action: Obtener tareas parametrizadas por mes y año para navegación futura
+ * Server Action: Obtener tareas parametrizadas por mes y aÃ±o para navegaciÃ³n futura
  */
 export async function getTasksForMonthAction(year: number, month: number) {
   const supabase = await createClient();
@@ -529,7 +529,7 @@ export async function addGoalAction(goal: {
       title: goal.title,
       type: goal.category === "professional" ? "profesional" : "personal",
       progress: goal.progress || 0,
-      target_date: goal.targetDate || "Fin de año",
+      target_date: goal.targetDate || "Fin de aÃ±o",
       timeframe: goal.timeframe || "Anual",
     })
     .select()
@@ -787,7 +787,7 @@ export async function updateUserSettings(data: {
   }
 
   if (error) {
-    console.error("Error al actualizar configuración:", error.message);
+    console.error("Error al actualizar configuraciÃ³n:", error.message);
     return { error: error.message };
   }
 
@@ -797,7 +797,7 @@ export async function updateUserSettings(data: {
 }
 
 /**
- * Server Action: Alternar log de hábito por fecha (compatibilidad)
+ * Server Action: Alternar log de hÃ¡bito por fecha (compatibilidad)
  */
 export async function toggleHabitLog(habitId: string, dateStr?: string) {
   const supabase = await createClient();
@@ -857,7 +857,7 @@ export async function savePushSubscriptionAction(subscription: any) {
     return { error: "Usuario no autenticado." };
   }
 
-  // Guardar o actualizar la suscripción por endpoint
+  // Guardar o actualizar la suscripciÃ³n por endpoint
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
@@ -871,7 +871,7 @@ export async function savePushSubscriptionAction(subscription: any) {
     );
 
   if (error) {
-    console.error("Error guardando suscripción push:", error.message);
+    console.error("Error guardando suscripciÃ³n push:", error.message);
     return { error: error.message };
   }
 
@@ -879,14 +879,14 @@ export async function savePushSubscriptionAction(subscription: any) {
 }
 // 9. ROLES DE USUARIO Y SISTEMA DE SOPORTE & FEEDBACK
 // Lista de correos con privilegios de Administrador
-// Puedes configurar correos aquí o mediante la variable de entorno ADMIN_EMAILS (separados por coma)
+// Puedes configurar correos aquÃ­ o mediante la variable de entorno ADMIN_EMAILS (separados por coma)
 const DEFAULT_ADMIN_EMAILS: string[] = [
   "brunobarraud15@gmail.com",
 ];
 
 function getAdminEmails(): string[] {
-  const envEmails = process.env.ADMIN_EMAILS 
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()) 
+  const envEmails = process.env.ADMIN_EMAILS
+    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
     : [];
   return [...DEFAULT_ADMIN_EMAILS.map((e) => e.toLowerCase()), ...envEmails].filter(Boolean);
 }
@@ -927,7 +927,7 @@ export async function getCurrentUserRoleAction(): Promise<{
         }
       }
 
-      // Si aún no tenía el email registrado en user_settings, lo sincronizamos automáticamente
+      // Si aÃºn no tenÃ­a el email registrado en user_settings, lo sincronizamos automÃ¡ticamente
       if (settings && !settings.email && user.email) {
         await supabase
           .from("user_settings")
@@ -935,7 +935,7 @@ export async function getCurrentUserRoleAction(): Promise<{
           .eq("user_id", user.id);
       }
     } catch {
-      // Tolerar si la columna aún no fue creada en Supabase
+      // Tolerar si la columna aÃºn no fue creada en Supabase
     }
 
     const adminEmails = getAdminEmails();
@@ -944,7 +944,7 @@ export async function getCurrentUserRoleAction(): Promise<{
     const isUserMetadataAdmin = user.user_metadata?.role === "admin";
     const isDbAdmin = dbRole === "admin";
 
-    // Si está marcado como admin en la BD (user_settings), por email en lista o por metadata, es admin
+    // Si estÃ¡ marcado como admin en la BD (user_settings), por email en lista o por metadata, es admin
     const role: UserRole = (isDbAdmin || isEmailAdmin || isAppMetadataAdmin || isUserMetadataAdmin) ? "admin" : "user";
 
     return { user, role, isAuthenticated: true };
@@ -963,15 +963,15 @@ export async function setUserRoleAction(targetRole: UserRole) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return { error: "Debes iniciar sesión para realizar esta acción." };
+      return { error: "Debes iniciar sesiÃ³n para realizar esta acciÃ³n." };
     }
 
     // Verificar si quien intenta cambiar el rol es realmente admin
     const adminEmails = getAdminEmails();
     const userEmail = (user.email || "").toLowerCase();
-    const isCallerAdmin = 
-      adminEmails.includes(userEmail) || 
-      user.app_metadata?.role === "admin" || 
+    const isCallerAdmin =
+      adminEmails.includes(userEmail) ||
+      user.app_metadata?.role === "admin" ||
       user.user_metadata?.role === "admin";
 
     if (!isCallerAdmin) {
@@ -1040,7 +1040,7 @@ export async function createFeedbackAction(payload: {
 
     if (error) {
       console.warn("Aviso al insertar en support_feedback:", error.message);
-      // Retornar fallback simulado exitoso para no bloquear al usuario si la tabla aún no se ejecutó en SQL
+      // Retornar fallback simulado exitoso para no bloquear al usuario si la tabla aÃºn no se ejecutÃ³ en SQL
       const fallbackFeedback: SupportFeedback = {
         id: "fb-" + Date.now(),
         userId: user?.id,
@@ -1084,7 +1084,7 @@ export async function createFeedbackAction(payload: {
 
 /**
  * Server Action: Obtener feedbacks
- * Si es admin, retorna todos los feedbacks. Si es usuario común, solo los suyos.
+ * Si es admin, retorna todos los feedbacks. Si es usuario comÃºn, solo los suyos.
  */
 export async function getFeedbacksAction(): Promise<{
   feedbacks: SupportFeedback[];
@@ -1193,3 +1193,21 @@ export async function deleteFeedbackAction(feedbackId: string) {
     return { error: err.message || "Error al eliminar feedback." };
   }
 }
+
+export async function addCalendarAction(name: string, color: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+  
+  const { error } = await supabase.from("calendars").insert({
+    user_id: user.id,
+    name,
+    color,
+    is_default: false
+  });
+  
+  if (error) return { error: error.message };
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
