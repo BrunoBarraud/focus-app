@@ -78,27 +78,27 @@ export function DashboardInteractive({
         </div>
       </div>
 
-      {/* 2. Módulo de Hábitos (Diseño Estricto: Columna fija + Timeline scrollable + Checkmarks verdes) */}
-      <section aria-labelledby="habitos-matrix-heading">
-        <HabitTrackerMatrix initialHabits={initialHabits} />
-      </section>
-
-      {/* 3. Grid de 2 Columnas para Organizador Semanal y Enfoque / Ritual */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Organizador Semanal y Mensual (7 columnas en desktop) */}
-        <div className="lg:col-span-7">
+      {/* FILA 1 (Top - Mayor prioridad): Planificador Inteligente (más ancho), Focus Mode (alto y con presencia) y Priorities */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Planificador Inteligente: Widget principal y más ancho (7 de 12 columnas) */}
+        <div className="lg:col-span-7 flex flex-col h-full">
           <WeeklyMonthlyPlanner initialTasks={initialTasks} initialCalendars={initialCalendars} />
         </div>
 
-        {/* Focus Mode Pomodoro + Ritual Matutino (5 columnas en desktop) */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* Columna lateral (5 de 12 columnas): Focus Mode de gran altura + Priorities */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
           <EditablePomodoro />
           <InlineMorningRitual initialData={initialRitual} />
         </div>
       </section>
 
-      {/* 4. Objetivos y Metas de Alta Fluidez */}
-      <section aria-labelledby="objetivos-heading">
+      {/* FILA 2 (Medio): Matriz de Hábitos & Consistencia (Ocupando todo el ancho disponible) */}
+      <section aria-labelledby="habitos-matrix-heading" className="w-full">
+        <HabitTrackerMatrix initialHabits={initialHabits} />
+      </section>
+
+      {/* FILA 3 (Abajo): Objetivos & Metas Estratégicas (Al fondo de la página) */}
+      <section aria-labelledby="objetivos-heading" className="w-full">
         <FluidGoalsList initialGoals={initialGoals} />
       </section>
     </div>

@@ -6,23 +6,26 @@ import { Sheet } from "@/components/ui/sheet";
 import { NavigationItems } from "./NavigationItems";
 import { Menu, Zap, User, LogOut, LogIn } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { logoutAction } from "@/app/actions";
+import { logoutAction, getCurrentUserRoleAction } from "@/app/actions";
+import { UserRole } from "@/lib/types";
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false);
   const [user, setUser] = React.useState<any>(null);
+  const [role, setRole] = React.useState<UserRole>("user");
 
   React.useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
+        const { user: currentUser, role: currentRole } = await getCurrentUserRoleAction();
+        setUser(currentUser);
+        setRole(currentRole);
       } catch {
         setUser(null);
+        setRole("user");
       }
     }
-    getUser();
+    getUserData();
   }, [open]);
 
   const displayName =
@@ -30,7 +33,7 @@ export function MobileNav() {
 
   return (
     <>
-      <header className="md:hidden sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-zinc-800/80 bg-zinc-950/90 px-4 backdrop-blur-lg">
+      <header className="lg:hidden sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-zinc-800/80 bg-zinc-950/90 px-4 backdrop-blur-lg">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-sm shadow-violet-600/30">
             <Zap className="h-4 w-4 fill-current" />
@@ -75,9 +78,20 @@ export function MobileNav() {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-100 truncate">
-                      {displayName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-zinc-100 truncate">
+                        {displayName}
+                      </p>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                          role === "admin"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {role === "admin" ? "👑 Admin" : "Usuario"}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-zinc-400 truncate">
                       {user.email}
                     </p>

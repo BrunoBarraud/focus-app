@@ -5,27 +5,30 @@ import Link from "next/link";
 import { NavigationItems } from "./NavigationItems";
 import { Zap, Flame, User, LogOut, LogIn, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { logoutAction } from "@/app/actions";
+import { logoutAction, getCurrentUserRoleAction } from "@/app/actions";
 import { ProfileModal } from "./ProfileModal";
+import { UserRole } from "@/lib/types";
 
 export function Sidebar() {
   const [user, setUser] = React.useState<any>(null);
+  const [role, setRole] = React.useState<UserRole>("user");
   const [loading, setLoading] = React.useState(true);
   const [profileOpen, setProfileOpen] = React.useState(false);
 
   React.useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       try {
-        const supabase = createClient();
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
+        const { user: currentUser, role: currentRole } = await getCurrentUserRoleAction();
+        setUser(currentUser);
+        setRole(currentRole);
       } catch {
         setUser(null);
+        setRole("user");
       } finally {
         setLoading(false);
       }
     }
-    getUser();
+    getUserData();
   }, []);
 
   const fullName =
@@ -34,7 +37,7 @@ export function Sidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex fixed top-0 left-0 bottom-0 z-40 w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+      <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
         {/* Brand Header */}
         <div className="flex h-16 items-center px-6 border-b border-zinc-800/80">
           <Link href="/dashboard" className="flex items-center gap-3 group">
@@ -76,9 +79,20 @@ export function Sidebar() {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-100 truncate group-hover/user:text-violet-300 transition-colors">
-                      {firstName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-zinc-100 truncate group-hover/user:text-violet-300 transition-colors">
+                        {firstName}
+                      </p>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                          role === "admin"
+                            ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {role === "admin" ? "👑 Admin" : "Usuario"}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-zinc-400 truncate">
                       {user.email}
                     </p>

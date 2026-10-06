@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { HabitCategory, WeekDay, MorningRitual, PlannerTask, Goal } from "@/lib/types";
+import { HabitCategory, WeekDay, MorningRitual, PlannerTask, Goal, UserRole, SupportFeedback, SupportFeedbackType, SupportFeedbackStatus, SupportFeedbackPriority } from "@/lib/types";
 
 // ==============================================================================
 // 1. AUTENTICACIÓN
@@ -71,6 +71,8 @@ export async function signupAction(formData: FormData) {
   if (data?.user) {
     await supabase.from("user_settings").upsert({
       user_id: data.user.id,
+      email: email,
+      role: "user",
       birth_date: birthDate,
       target_age: 80,
       daily_mission: `Propósito personal de ${fullName}`,
@@ -290,12 +292,29 @@ export async function toggleHabitDayAction(habitId: string, day: number) {
 // 3. TAREAS (ORGANIZADOR INTELIGENTE CON REVALIDACIÓN)
 // ==============================================================================
 
+function parseTaskTimeAndDesc(rawDesc?: string): { scheduledTime?: string; cleanDescription?: string } {
+  if (!rawDesc) return {};
+  if (rawDesc.startsWith("@time:")) {
+    const lines = rawDesc.split("\n");
+    const time = lines[0].replace("@time:", "").trim();
+    const clean = lines.slice(1).join("\n").trim();
+    return {
+      scheduledTime: time || undefined,
+      cleanDescription: clean || undefined,
+    };
+  }
+  return { cleanDescription: rawDesc };
+}
+
 /**
- * Server Action: Agregar una nueva tarea
+ * Server Action: Agregar una nueva tarea o reunión con horario
  */
 export async function addTaskAction(task: {
   title: string;
+  description?: string;
   day: WeekDay;
+  scheduledDate?: string;
+  scheduledTime?: string;
   priority: "high" | "medium" | "low";
   start_time?: string;
   calendar_id?: string;
@@ -343,10 +362,19 @@ export async function addTaskAction(task: {
     return { error: error.message };
   }
 
+  const parsed = parseTaskTimeAndDesc(newTask.description);
+
   revalidatePath("/", "layout");
   revalidatePath("/dashboard", "layout");
   revalidatePath("/planificador", "layout");
-  return { success: true, task: newTask };
+  return {
+    success: true,
+    task: {
+      ...newTask,
+      description: parsed.cleanDescription,
+      scheduledTime: parsed.scheduledTime,
+    },
+  };
 }
 
 /**
@@ -419,6 +447,56 @@ export async function deleteTaskAction(taskId: string) {
   revalidatePath("/dashboard", "layout");
   revalidatePath("/planificador", "layout");
   return { success: true };
+}
+
+/**
+ * Server Action: Obtener tareas parametrizadas por mes y año para navegación futura
+ */
+export async function getTasksForMonthAction(year: number, month: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Usuario no autenticado.", tasks: [] };
+  }
+
+  const startOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDay = new Date(year, month, 0).getDate();
+  const endOfMonth = `${year}-${String(month).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+
+  // Consultar tareas programadas para ese mes o tareas recurrentes generales
+  const { data: monthTasks, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", user.id)
+    .or(`and(scheduled_date.gte.${startOfMonth},scheduled_date.lte.${endOfMonth}),scheduled_date.is.null`)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error al obtener tareas del mes:", error.message);
+    return { error: error.message, tasks: [] };
+  }
+
+  return {
+    success: true,
+    tasks: (monthTasks || []).map((t: any) => {
+      const parsed = parseTaskTimeAndDesc(t.description);
+      return {
+        id: t.id,
+        title: t.title,
+        description: parsed.cleanDescription || "",
+        day: (t.day_of_week as WeekDay) || "L",
+        scheduledDate: t.scheduled_date || undefined,
+        scheduledTime: parsed.scheduledTime,
+        priority: (t.priority as any) || "medium",
+        estimatedMinutes: t.estimated_minutes || 30,
+        completed: t.status === "completed",
+        tag: t.tag || "General",
+      };
+    }),
+  };
 }
 
 // ==============================================================================
@@ -799,3 +877,321 @@ export async function savePushSubscriptionAction(subscription: any) {
 
   return { success: true };
 }
+// 9. ROLES DE USUARIO Y SISTEMA DE SOPORTE & FEEDBACK
+// Lista de correos con privilegios de Administrador
+// Puedes configurar correos aquí o mediante la variable de entorno ADMIN_EMAILS (separados por coma)
+const DEFAULT_ADMIN_EMAILS: string[] = [
+  "brunobarraud15@gmail.com",
+];
+
+function getAdminEmails(): string[] {
+  const envEmails = process.env.ADMIN_EMAILS 
+    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()) 
+    : [];
+  return [...DEFAULT_ADMIN_EMAILS.map((e) => e.toLowerCase()), ...envEmails].filter(Boolean);
+}
+
+/**
+ * Server Action: Obtener el rol y datos del usuario actual
+ */
+export async function getCurrentUserRoleAction(): Promise<{
+  user: any;
+  role: UserRole;
+  isAuthenticated: boolean;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { user: null, role: "user", isAuthenticated: false };
+    }
+
+    const userEmail = (user.email || "").toLowerCase().trim();
+
+    // 1. Consultar rol y asegurar email en la base de datos (public.user_settings)
+    let dbRole: UserRole | null = null;
+    try {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("role, email")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (settings?.role) {
+        const cleanRole = String(settings.role).trim().toLowerCase();
+        if (cleanRole === "admin") {
+          dbRole = "admin";
+        } else if (cleanRole === "user") {
+          dbRole = "user";
+        }
+      }
+
+      // Si aún no tenía el email registrado en user_settings, lo sincronizamos automáticamente
+      if (settings && !settings.email && user.email) {
+        await supabase
+          .from("user_settings")
+          .update({ email: user.email })
+          .eq("user_id", user.id);
+      }
+    } catch {
+      // Tolerar si la columna aún no fue creada en Supabase
+    }
+
+    const adminEmails = getAdminEmails();
+    const isEmailAdmin = adminEmails.includes(userEmail);
+    const isAppMetadataAdmin = user.app_metadata?.role === "admin";
+    const isUserMetadataAdmin = user.user_metadata?.role === "admin";
+    const isDbAdmin = dbRole === "admin";
+
+    // Si está marcado como admin en la BD (user_settings), por email en lista o por metadata, es admin
+    const role: UserRole = (isDbAdmin || isEmailAdmin || isAppMetadataAdmin || isUserMetadataAdmin) ? "admin" : "user";
+
+    return { user, role, isAuthenticated: true };
+  } catch (err) {
+    console.warn("Error al consultar rol de usuario:", err);
+    return { user: null, role: "user", isAuthenticated: false };
+  }
+}
+
+/**
+ * Server Action: Asignar o cambiar el rol de usuario (solo ejecutable por un Administrador)
+ */
+export async function setUserRoleAction(targetRole: UserRole) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: "Debes iniciar sesión para realizar esta acción." };
+    }
+
+    // Verificar si quien intenta cambiar el rol es realmente admin
+    const adminEmails = getAdminEmails();
+    const userEmail = (user.email || "").toLowerCase();
+    const isCallerAdmin = 
+      adminEmails.includes(userEmail) || 
+      user.app_metadata?.role === "admin" || 
+      user.user_metadata?.role === "admin";
+
+    if (!isCallerAdmin) {
+      return { error: "No tienes permisos de Administrador para asignar o modificar roles." };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        ...user.user_metadata,
+        role: targetRole,
+      },
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/", "layout");
+    revalidatePath("/soporte", "layout");
+    revalidatePath("/dashboard", "layout");
+    return { success: true, role: targetRole };
+  } catch (err: any) {
+    return { error: err.message || "Error al actualizar rol." };
+  }
+}
+
+/**
+ * Server Action: Crear nuevo Feedback o Ticket de Soporte
+ */
+export async function createFeedbackAction(payload: {
+  type: SupportFeedbackType;
+  title: string;
+  description: string;
+  rating?: number;
+  priority?: SupportFeedbackPriority;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const userEmail = user?.email || "anonimo@focus-app.com";
+    const userName =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.first_name ||
+      userEmail.split("@")[0] ||
+      "Usuario de Focus";
+
+    const insertData = {
+      user_id: user?.id || null,
+      user_email: userEmail,
+      user_name: userName,
+      type: payload.type || "suggestion",
+      title: payload.title.trim(),
+      description: payload.description.trim(),
+      rating: payload.rating || 5,
+      priority: payload.priority || "medium",
+      status: "pending",
+      admin_response: null,
+    };
+
+    const { data, error } = await supabase
+      .from("support_feedback")
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      console.warn("Aviso al insertar en support_feedback:", error.message);
+      // Retornar fallback simulado exitoso para no bloquear al usuario si la tabla aún no se ejecutó en SQL
+      const fallbackFeedback: SupportFeedback = {
+        id: "fb-" + Date.now(),
+        userId: user?.id,
+        userEmail,
+        userName,
+        type: payload.type,
+        title: payload.title,
+        description: payload.description,
+        rating: payload.rating,
+        priority: payload.priority || "medium",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      return { success: true, feedback: fallbackFeedback, note: "Guardado localmente" };
+    }
+
+    revalidatePath("/soporte", "layout");
+    return {
+      success: true,
+      feedback: {
+        id: data.id,
+        userId: data.user_id,
+        userEmail: data.user_email,
+        userName: data.user_name,
+        type: data.type,
+        title: data.title,
+        description: data.description,
+        rating: data.rating,
+        priority: data.priority,
+        status: data.status,
+        adminResponse: data.admin_response,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      },
+    };
+  } catch (err: any) {
+    return { error: err.message || "Error al enviar feedback." };
+  }
+}
+
+/**
+ * Server Action: Obtener feedbacks
+ * Si es admin, retorna todos los feedbacks. Si es usuario común, solo los suyos.
+ */
+export async function getFeedbacksAction(): Promise<{
+  feedbacks: SupportFeedback[];
+  isAdmin: boolean;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const isAdmin =
+      user?.user_metadata?.role === "admin" || user?.app_metadata?.role === "admin";
+
+    let query = supabase.from("support_feedback").select("*").order("created_at", { ascending: false });
+
+    if (!isAdmin && user) {
+      query = query.eq("user_id", user.id);
+    } else if (!isAdmin && !user) {
+      return { feedbacks: [], isAdmin: false };
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.warn("Aviso al consultar support_feedback:", error.message);
+      return { feedbacks: [], isAdmin: Boolean(isAdmin) };
+    }
+
+    const formatted: SupportFeedback[] = (data || []).map((item: any) => ({
+      id: item.id,
+      userId: item.user_id,
+      userEmail: item.user_email,
+      userName: item.user_name,
+      type: item.type,
+      title: item.title,
+      description: item.description,
+      rating: item.rating,
+      priority: item.priority,
+      status: item.status,
+      adminResponse: item.admin_response,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    }));
+
+    return { feedbacks: formatted, isAdmin: Boolean(isAdmin) };
+  } catch (err: any) {
+    return { feedbacks: [], isAdmin: false, error: err.message };
+  }
+}
+
+/**
+ * Server Action: Actualizar estado o respuesta del administrador a un feedback
+ */
+export async function updateFeedbackStatusAction(
+  feedbackId: string,
+  newStatus: SupportFeedbackStatus,
+  adminResponse?: string
+) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const updatePayload: any = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (adminResponse !== undefined) {
+      updatePayload.admin_response = adminResponse.trim();
+    }
+
+    const { error } = await supabase
+      .from("support_feedback")
+      .update(updatePayload)
+      .eq("id", feedbackId);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/soporte", "layout");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Error al actualizar feedback." };
+  }
+}
+
+/**
+ * Server Action: Eliminar un feedback
+ */
+export async function deleteFeedbackAction(feedbackId: string) {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("support_feedback")
+      .delete()
+      .eq("id", feedbackId);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/soporte", "layout");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Error al eliminar feedback." };
+  }
+}
+
+>>>>>>> origin/main

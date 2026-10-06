@@ -6,6 +6,8 @@
 -- 1. Tabla de Preferencias y Memento Mori (user_settings)
 CREATE TABLE IF NOT EXISTS public.user_settings (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'user')),
     birth_date DATE NOT NULL,
     target_age INT DEFAULT 80,
     daily_mission TEXT,
@@ -15,6 +17,10 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
     preferences JSONB DEFAULT '{"theme": "dark", "sound": true}'::jsonb,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Migración para proyectos existentes:
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'user'));
 
 -- 2. Tabla de Catálogo de Hábitos (habits)
 CREATE TABLE IF NOT EXISTS public.habits (
@@ -203,16 +209,19 @@ CREATE POLICY "Users can delete their own goals"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.user_settings (user_id, birth_date, target_age, daily_mission, daily_pillar, daily_frog)
+    INSERT INTO public.user_settings (user_id, email, role, birth_date, target_age, daily_mission, daily_pillar, daily_frog)
     VALUES (
         NEW.id,
+        NEW.email,
+        'user',
         '1992-05-15', -- Fecha por defecto personalizable (aprox 34 años)
         80,
         'Diseñar y desplegar la arquitectura completa de Focus con máxima presencia.',
         'Disciplina profunda & Claridad mental',
         'Finalizar el refactor del motor de persistencia'
     )
-    ON CONFLICT (user_id) DO NOTHING;
+    ON CONFLICT (user_id) DO UPDATE
+    SET email = EXCLUDED.email;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -220,3 +229,40 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==============================================================================
+-- 7. TABLA DE SOPORTE & FEEDBACK (support_feedback)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.support_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_email TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'suggestion' CHECK (type IN ('suggestion', 'improvement', 'bug', 'question', 'other')),
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    rating INT DEFAULT 5 CHECK (rating >= 1 AND rating <= 5),
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_review', 'resolved', 'dismissed')),
+    admin_response TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE public.support_feedback ENABLE ROW LEVEL SECURITY;
+
+-- Los usuarios autenticados pueden ver sus propios feedbacks
+CREATE POLICY "Users can view their own feedbacks"
+    ON public.support_feedback FOR SELECT
+    USING (auth.uid() = user_id OR (auth.jwt()->'user_metadata'->>'role') = 'admin');
+
+-- Cualquier usuario autenticado puede enviar feedback
+CREATE POLICY "Users can insert feedback"
+    ON public.support_feedback FOR INSERT
+    WITH CHECK (auth.uid() = user_id OR auth.uid() IS NOT NULL);
+
+-- Los administradores pueden actualizar el estado y responder
+CREATE POLICY "Admins can update feedbacks"
+    ON public.support_feedback FOR UPDATE
+    USING ((auth.jwt()->'user_metadata'->>'role') = 'admin' OR auth.uid() = user_id);
+

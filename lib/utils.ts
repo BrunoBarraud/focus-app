@@ -13,7 +13,56 @@ export function formatTime(seconds: number): string {
 }
 
 /**
- * Devuelve el número de días del mes actual (o el mes especificado)
+ * Obtiene la fecha local del usuario en formato YYYY-MM-DD usando Intl (inmune a desfases UTC).
+ */
+export function getLocalTodayIso(date: Date = new Date()): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(date);
+}
+
+/**
+ * Obtiene el número de día actual (1-31) en la zona horaria local.
+ */
+export function getLocalDay(date: Date = new Date()): number {
+  const iso = getLocalTodayIso(date);
+  return parseInt(iso.split("-")[2], 10);
+}
+
+/**
+ * Parsea un string "YYYY-MM-DD" a un Date en hora local (evita que el constructor Date(string) asuma UTC 00:00 y reste 1 día).
+ */
+export function parseLocalDate(isoDate: string): Date {
+  const parts = isoDate.split("-").map(Number);
+  const year = parts[0];
+  const month = parts[1] - 1;
+  const day = parts[2];
+  return new Date(year, month, day, 12, 0, 0);
+}
+
+/**
+ * Formatea una fecha en español respetando la zona horaria local.
+ */
+export function formatLocalDateEs(
+  dateOrIso: Date | string,
+  options?: Intl.DateTimeFormatOptions
+): string {
+  const d = typeof dateOrIso === "string" ? parseLocalDate(dateOrIso) : dateOrIso;
+  return new Intl.DateTimeFormat(
+    "es-ES",
+    options || {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }
+  ).format(d);
+}
+
+/**
+ * Devuelve el número de días del mes especificado (o actual)
  */
 export function getDaysInMonth(year?: number, month?: number): number {
   const now = new Date();
@@ -25,10 +74,13 @@ export function getDaysInMonth(year?: number, month?: number): number {
 /**
  * Calcula la racha consecutiva real de un hábito.
  * Recibe un Record<number, boolean> donde la clave es el día del mes (1-31).
- * Cuenta días consecutivos hacia atrás desde hoy.
+ * Cuenta días consecutivos hacia atrás desde hoy (en hora local).
  */
-export function calculateStreak(completedDays: Record<number, boolean>): number {
-  const today = new Date().getDate();
+export function calculateStreak(
+  completedDays: Record<number, boolean>,
+  todayDayNumber?: number
+): number {
+  const today = todayDayNumber ?? getLocalDay();
   let streak = 0;
 
   for (let day = today; day >= 1; day--) {
