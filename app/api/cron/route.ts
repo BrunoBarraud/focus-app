@@ -2,21 +2,23 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import webPush from "web-push";
 
-// Configurar Web Push
-webPush.setVapidDetails(
-  process.env.VAPID_SUBJECT || "mailto:admin@focus.app",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
-
-// Cliente Supabase con permisos de Admin (Service Role)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    // Configurar Web Push
+    webPush.setVapidDetails(
+      process.env.VAPID_SUBJECT || "mailto:admin@focus.app",
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+      process.env.VAPID_PRIVATE_KEY || ""
+    );
+
+    // Cliente Supabase con permisos de Admin (Service Role)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    );
+
     // 1. Obtener la hora actual en UTC
     const now = new Date();
     
