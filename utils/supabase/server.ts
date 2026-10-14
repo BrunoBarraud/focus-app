@@ -1,15 +1,14 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { Database } from "@/lib/database.types";
+import { getSupabaseEnv } from "./env";
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const { url, anonKey } = getSupabaseEnv();
 
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient<Database>(url, anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -20,7 +19,8 @@ export async function createClient() {
             cookieStore.set(name, value, options)
           );
         } catch {
-          // Ignorar si se invoca desde Server Component sin middleware
+          // Los Server Components no pueden escribir cookies; el refresco de
+          // sesión lo hace proxy.ts en cada request.
         }
       },
     },

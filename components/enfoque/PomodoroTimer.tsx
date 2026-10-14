@@ -2,22 +2,12 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { PomodoroMode } from "@/lib/types";
+import { playTimerEndSound } from "@/lib/sound";
+import { useCountdown } from "@/lib/use-countdown";
+
+type PomodoroMode = "focus" | "short_break" | "long_break";
 import { formatTime, cn } from "@/lib/utils";
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  Sparkles,
-  Flame,
-  Volume2,
-  VolumeX,
-  Target,
-  Coffee,
-  CheckCircle2,
-} from "lucide-react";
+import { Play, Pause, RotateCcw, Sparkles, Volume2, VolumeX, Target } from "lucide-react";
 
 const MODE_CONFIG: Record<
   PomodoroMode,
@@ -45,70 +35,26 @@ const MODE_CONFIG: Record<
 
 export function PomodoroTimer() {
   const [mode, setMode] = React.useState<PomodoroMode>("focus");
-  const [timeLeft, setTimeLeft] = React.useState(MODE_CONFIG.focus.duration);
-  const [isRunning, setIsRunning] = React.useState(false);
   const [completedSessions, setCompletedSessions] = React.useState(0);
   const [currentTask, setCurrentTask] = React.useState("");
   const [soundEnabled, setSoundEnabled] = React.useState(true);
 
-  // Timer interval
-  React.useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isRunning) {
-      // Session finished
-      setIsRunning(false);
-      if (mode === "focus") {
-        setCompletedSessions((prev) => prev + 1);
-        setMode("short_break");
-        setTimeLeft(MODE_CONFIG.short_break.duration);
-      } else {
-        setMode("focus");
-        setTimeLeft(MODE_CONFIG.focus.duration);
-      }
-
-      // Audio notification beep (Web Audio API)
-      if (soundEnabled && typeof window !== "undefined") {
-        try {
-          const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.frequency.value = 587.33; // D5 note
-          osc.type = "sine";
-          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 1.2);
-        } catch {
-          // Ignore
-        }
-      }
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRunning, timeLeft, mode, soundEnabled]);
+  const { timeLeft, isRunning, toggle: toggleTimer, reset } = useCountdown(MODE_CONFIG.focus.duration, (controls) => {
+    // Sesión terminada: alternar entre enfoque y descanso.
+    const nextMode: PomodoroMode = mode === "focus" ? "short_break" : "focus";
+    if (mode === "focus") setCompletedSessions((prev) => prev + 1);
+    setMode(nextMode);
+    controls.reset(MODE_CONFIG[nextMode].duration);
+    if (soundEnabled) playTimerEndSound(587.33, 1.2);
+  });
 
   const switchMode = (newMode: PomodoroMode) => {
-    setIsRunning(false);
     setMode(newMode);
-    setTimeLeft(MODE_CONFIG[newMode].duration);
-  };
-
-  const toggleTimer = () => {
-    setIsRunning(!isRunning);
+    reset(MODE_CONFIG[newMode].duration);
   };
 
   const resetTimer = () => {
-    setIsRunning(false);
-    setTimeLeft(MODE_CONFIG[mode].duration);
+    reset(MODE_CONFIG[mode].duration);
   };
 
   // Circular SVG calculations

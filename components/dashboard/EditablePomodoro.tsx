@@ -1,17 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Play, Pause, RotateCcw, Flame, Volume2, VolumeX, Sparkles, Zap, Coffee } from "lucide-react";
+import { playTimerEndSound } from "@/lib/sound";
+import { useCountdown } from "@/lib/use-countdown";
+import { Play, Pause, RotateCcw, Flame, Volume2, VolumeX } from "lucide-react";
 
 export function EditablePomodoro() {
   const [initialSeconds, setInitialSeconds] = React.useState<number>(25 * 60);
-  const [timeLeft, setTimeLeft] = React.useState<number>(25 * 60);
-  const [isRunning, setIsRunning] = React.useState<boolean>(false);
   const [mode, setMode] = React.useState<"focus" | "deep" | "short_break" | "long_break">("focus");
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editInput, setEditInput] = React.useState<string>("25:00");
   const [soundEnabled, setSoundEnabled] = React.useState<boolean>(true);
   const [sessionsCompleted, setSessionsCompleted] = React.useState<number>(0);
+
+  const { timeLeft, isRunning, toggle, reset } = useCountdown(25 * 60, () => {
+    if (soundEnabled) playTimerEndSound(880, 0.8);
+    if (mode === "focus" || mode === "deep") setSessionsCompleted((c) => c + 1);
+  });
 
   // Formatear segundos a MM:SS
   const formatTime = (seconds: number) => {
@@ -20,50 +25,12 @@ export function EditablePomodoro() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
-  // Sonido con Web Audio API
-  const playBeep = () => {
-    if (!soundEnabled || typeof window === "undefined") return;
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.8);
-    } catch {
-      // Ignorar error de audio si no está soportado
-    }
-  };
-
-  // Temporizador principal
-  React.useEffect(() => {
-    let interval: any = null;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (isRunning && timeLeft === 0) {
-      setIsRunning(false);
-      playBeep();
-      if (mode === "focus" || mode === "deep") {
-        setSessionsCompleted((c) => c + 1);
-      }
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft, mode]);
-
   // Cambiar modo con presets
   const handleSetMode = (newMode: "focus" | "deep" | "short_break" | "long_break", mins: number) => {
-    setIsRunning(false);
     setMode(newMode);
     const totalSecs = mins * 60;
     setInitialSeconds(totalSecs);
-    setTimeLeft(totalSecs);
+    reset(totalSecs);
     setEditInput(formatTime(totalSecs));
   };
 
@@ -77,13 +44,13 @@ export function EditablePomodoro() {
       const s = parseInt(sStr, 10) || 0;
       const total = Math.max(10, m * 60 + s);
       setInitialSeconds(total);
-      setTimeLeft(total);
+      reset(total);
       setEditInput(formatTime(total));
     } else {
       const m = parseInt(trimmed, 10) || 25;
       const total = Math.max(10, m * 60);
       setInitialSeconds(total);
-      setTimeLeft(total);
+      reset(total);
       setEditInput(formatTime(total));
     }
   };
@@ -95,8 +62,7 @@ export function EditablePomodoro() {
   };
 
   const handleReset = () => {
-    setIsRunning(false);
-    setTimeLeft(initialSeconds);
+    reset(initialSeconds);
     setEditInput(formatTime(initialSeconds));
   };
 
@@ -265,7 +231,7 @@ export function EditablePomodoro() {
       <div className="flex items-center justify-center gap-3 pt-2">
         <button
           type="button"
-          onClick={() => setIsRunning(!isRunning)}
+          onClick={toggle}
           className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-lg active:scale-95 ${
             isRunning
               ? "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-amber-500/20"

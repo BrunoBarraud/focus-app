@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  CheckSquare,
-  Calendar,
-  Target,
-  Timer,
-  Sparkles,
-  LifeBuoy,
-} from "lucide-react";
+import { LayoutDashboard, CheckSquare, Calendar, Target, Timer, LifeBuoy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS = [

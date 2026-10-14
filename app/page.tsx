@@ -1,6 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
-import { createClient } from "@/utils/supabase/server";
+import { getViewer } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Zap,
@@ -22,14 +22,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
-  let user = null;
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch {
-    user = null;
-  }
+  const user = await getViewer();
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col relative overflow-x-hidden">

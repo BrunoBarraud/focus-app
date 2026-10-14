@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Dream } from "@/lib/types";
-import { toggleDreamStatus, addDream } from "@/lib/api";
+import type { Dream } from "@/lib/types";
+import { addDreamAction, setDreamStatusAction } from "@/app/actions/goals";
+import { useToast } from "@/components/ui/toast";
+import { useServerState } from "@/lib/client-hooks";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import confetti from "canvas-confetti";
-import { Sparkles, Plus, CheckCircle, Clock, CircleAlert, Compass } from "lucide-react";
+import { Sparkles, Plus, CheckCircle, Clock, CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DreamsListProps {
@@ -16,52 +18,63 @@ interface DreamsListProps {
 }
 
 export function DreamsList({ initialDreams }: DreamsListProps) {
-  const [dreams, setDreams] = React.useState<Dream[]>(initialDreams);
+  const toast = useToast();
+  const [dreams, setDreams] = useServerState<Dream[]>(initialDreams);
   const [filter, setFilter] = React.useState<string>("all");
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
   // Form states
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [category, setCategory] = React.useState<Dream["category"]>("Experiencias");
-  const [targetYear, setTargetYear] = React.useState(2028);
+  const [targetYear, setTargetYear] = React.useState(() => new Date().getFullYear() + 2);
 
   const filteredDreams = dreams.filter((d) =>
     filter === "all" ? true : d.status === filter
   );
 
   const handleStatusChange = async (dreamId: string, nextStatus: Dream["status"]) => {
-    if (nextStatus === "completed") {
-      // Trigger confetti celebration
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ["#10b981", "#34d399", "#fbbf24", "#38bdf8"],
-        });
-      } catch (err) {
-        // Fallback silently if confetti is blocked
-      }
+    const previous = dreams.find((d) => d.id === dreamId)?.status;
+    if (!previous || previous === nextStatus) return;
+
+    setDreams((prev) => prev.map((d) => (d.id === dreamId ? { ...d, status: nextStatus } : d)));
+    const res = await setDreamStatusAction(dreamId, nextStatus);
+    if (!res.ok) {
+      setDreams((prev) => prev.map((d) => (d.id === dreamId ? { ...d, status: previous } : d)));
+      toast.error(res.error);
+      return;
     }
 
-    const updated = await toggleDreamStatus(dreamId, nextStatus);
-    setDreams(updated);
+    if (nextStatus === "completed") {
+      // Festejo solo cuando quedó guardado.
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#10b981", "#34d399", "#fbbf24", "#38bdf8"],
+      });
+    }
   };
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
 
-    const updated = await addDream({
+    setSaving(true);
+    const res = await addDreamAction({
       title: title.trim(),
-      description: description.trim(),
+      description: description.trim() || undefined,
       category,
-      status: "pending",
-      targetYear: Number(targetYear) || 2028,
+      targetYear: Number(targetYear) || undefined,
     });
+    setSaving(false);
 
-    setDreams(updated);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    setDreams((prev) => [res.data, ...prev]);
     setTitle("");
     setDescription("");
     setIsAddOpen(false);
@@ -320,8 +333,8 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" variant="glow">
-              Guardar Sueño
+            <Button type="submit" variant="glow" disabled={saving}>
+              {saving ? "Guardando..." : "Guardar Sueño"}
             </Button>
           </div>
         </form>

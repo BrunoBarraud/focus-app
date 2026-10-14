@@ -12,8 +12,10 @@ import {
 } from "recharts";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { WheelArea } from "@/lib/types";
-import { updateWheelAreaScore } from "@/lib/api";
-import { Compass, Sparkles, Activity } from "lucide-react";
+import { updateWheelAreaAction } from "@/app/actions/goals";
+import { useToast } from "@/components/ui/toast";
+import { useIsClient } from "@/lib/client-hooks";
+import { Compass, Activity } from "lucide-react";
 
 interface WheelOfLifeProps {
   initialAreas: WheelArea[];
@@ -21,15 +23,40 @@ interface WheelOfLifeProps {
 
 export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
   const [areas, setAreas] = React.useState<WheelArea[]>(initialAreas);
-  const [isMounted, setIsMounted] = React.useState(false);
+  // Recharts mide el DOM: el gráfico se dibuja solo en el cliente.
+  const isMounted = useIsClient();
+
+  const toast = useToast();
+  // Un timer por área: el slider dispara onChange en cada paso y antes cada uno
+  // era un request (y refetch) distinto. Ahora se guarda al soltar/parar.
+  const saveTimers = React.useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const lastSaved = React.useRef(new Map(initialAreas.map((a) => [a.subject, a.score])));
 
   React.useEffect(() => {
-    setIsMounted(true);
+    const timers = saveTimers.current;
+    return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  const handleScoreChange = async (subject: string, newScore: number) => {
-    const updated = await updateWheelAreaScore(subject, newScore);
-    setAreas(updated);
+  const handleScoreChange = (subject: string, newScore: number) => {
+    setAreas((prev) => prev.map((a) => (a.subject === subject ? { ...a, score: newScore } : a)));
+
+    const timers = saveTimers.current;
+    const pending = timers.get(subject);
+    if (pending) clearTimeout(pending);
+    timers.set(
+      subject,
+      setTimeout(async () => {
+        timers.delete(subject);
+        const res = await updateWheelAreaAction(subject, newScore);
+        if (res.ok) {
+          lastSaved.current.set(subject, newScore);
+        } else {
+          const previous = lastSaved.current.get(subject) ?? newScore;
+          setAreas((prev) => prev.map((a) => (a.subject === subject ? { ...a, score: previous } : a)));
+          toast.error(res.error);
+        }
+      }, 500)
+    );
   };
 
   const averageScore = (

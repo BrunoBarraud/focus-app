@@ -1,28 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { Goal, GoalCategory } from "@/lib/types";
-import { toggleMilestone } from "@/lib/api";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import type { Goal, GoalCategory } from "@/lib/types";
+import { formatTargetDate } from "./useGoals";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Calendar, Target, Flag } from "lucide-react";
+import { CheckCircle2, Calendar, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface GoalsListProps {
   category: GoalCategory;
-  initialGoals: Goal[];
+  goals: Goal[];
+  onToggleMilestone: (goalId: string, milestoneId: string) => void;
 }
 
-export function GoalsList({ category, initialGoals }: GoalsListProps) {
-  const [goals, setGoals] = React.useState<Goal[]>(initialGoals);
-
+// Presentacional: el estado vive en <ObjetivosClient> (useGoals) para que las
+// pestañas Personal y Profesional compartan una sola lista.
+export function GoalsList({ category, goals, onToggleMilestone }: GoalsListProps) {
   const filteredGoals = goals.filter((g) => g.category === category);
-
-  const handleToggleMilestone = async (goalId: string, milestoneId: string) => {
-    const updated = await toggleMilestone(goalId, milestoneId);
-    setGoals(updated);
-  };
 
   return (
     <div className="space-y-4">
@@ -60,7 +56,7 @@ export function GoalsList({ category, initialGoals }: GoalsListProps) {
                         {goal.timeframe}
                       </Badge>
                       <span className="text-xs text-zinc-400 flex items-center gap-1">
-                        <Calendar className="h-3 w-3 text-violet-400" /> Meta: {goal.targetDate}
+                        <Calendar className="h-3 w-3 text-violet-400" /> Meta: {formatTargetDate(goal.targetDate)}
                       </span>
                     </div>
                   </div>
@@ -91,7 +87,7 @@ export function GoalsList({ category, initialGoals }: GoalsListProps) {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => handleToggleMilestone(goal.id, m.id)}
+                      onClick={() => onToggleMilestone(goal.id, m.id)}
                       className={cn(
                         "flex items-start gap-2.5 p-2 rounded-lg border text-left transition-all cursor-pointer select-none",
                         m.completed

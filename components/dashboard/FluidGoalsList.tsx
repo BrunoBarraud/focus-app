@@ -1,133 +1,36 @@
 "use client";
 
 import * as React from "react";
-import { Goal, GoalCategory } from "@/lib/types";
-import { addGoalAction, deleteGoalAction, toggleMilestoneAction } from "@/app/actions";
-import {
-  Target,
-  User,
-  Briefcase,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Circle,
-  Sparkles,
-  TrendingUp,
-  Calendar,
-} from "lucide-react";
+import type { Goal, GoalCategory, GoalTimeframe } from "@/lib/types";
+import { formatTargetDate, isTempId, useGoals } from "@/components/objetivos/useGoals";
+import { Target, User, Briefcase, Plus, Trash2, CheckCircle2, Circle, TrendingUp, Calendar } from "lucide-react";
 
 interface FluidGoalsListProps {
   initialGoals: Goal[];
 }
 
 export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
-  const [goals, setGoals] = React.useState<Goal[]>(initialGoals);
+  const { goals, addGoal, toggleMilestone, deleteGoal } = useGoals(initialGoals);
   const [category, setCategory] = React.useState<GoalCategory>("personal");
   const [newTitle, setNewTitle] = React.useState("");
-  const [newTimeframe, setNewTimeframe] = React.useState<"Q1" | "Q2" | "Q3" | "Q4" | "Anual">("Q3");
+  const [newTimeframe, setNewTimeframe] = React.useState<GoalTimeframe>("Q3");
+  const [newTargetDate, setNewTargetDate] = React.useState("");
 
-  // Sincronizar estado cuando el Server Component revalida y envía datos frescos
-  React.useEffect(() => {
-    setGoals(initialGoals);
-  }, [initialGoals]);
+  const filteredGoals = React.useMemo(() => goals.filter((g) => g.category === category), [goals, category]);
 
-  const filteredGoals = React.useMemo(() => {
-    return goals.filter((g) => g.category === category);
-  }, [goals, category]);
-
-  // Agregar meta rápida inline con Server Action
   const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const previousGoals = goals;
-    const titleToSave = newTitle.trim();
-    const tempId = "temp-" + Date.now();
-    const tempGoal: Goal = {
-      id: tempId,
-      title: titleToSave,
-      category,
-      progress: 0,
-      targetDate: "Fin de año",
-      timeframe: newTimeframe,
-      milestones: [
-        { id: "m1", title: "Fase 1: Planificación", completed: false },
-        { id: "m2", title: "Fase 2: Ejecución", completed: false },
-      ],
-    };
-
-    setGoals((prev) => [tempGoal, ...prev]);
+    const title = newTitle.trim();
+    if (!title) return;
     setNewTitle("");
-
-    try {
-      const res = await addGoalAction({
-        title: tempGoal.title,
-        category: tempGoal.category,
-        progress: tempGoal.progress,
-        targetDate: tempGoal.targetDate,
-        timeframe: tempGoal.timeframe,
-      });
-
-      if (res?.error) {
-        console.error("Error al agregar meta en Supabase:", res.error);
-        setGoals(previousGoals);
-      } else if (res?.goal) {
-        setGoals((prev) =>
-          prev.map((g) => (g.id === tempId ? { ...g, id: res.goal.id } : g))
-        );
-      }
-    } catch (err) {
-      console.error("Error al agregar meta:", err);
-      setGoals(previousGoals);
-    }
-  };
-
-  // Alternar progreso o hito de la meta con Server Action y rollback
-  const handleToggleMilestone = async (goalId: string, milestoneId: string) => {
-    const previousGoals = goals;
-
-    // Optimistic progress bump
-    setGoals((prev) =>
-      prev.map((g) => {
-        if (g.id !== goalId) return g;
-        const newProgress = g.progress >= 100 ? 50 : Math.min(100, g.progress + 25);
-        return {
-          ...g,
-          progress: newProgress,
-          milestones: g.milestones.map((m) =>
-            m.id === milestoneId ? { ...m, completed: !m.completed } : m
-          ),
-        };
-      })
-    );
-
-    try {
-      const res = await toggleMilestoneAction(goalId, milestoneId);
-      if (res?.error) {
-        console.error("Error al actualizar hito:", res.error);
-        setGoals(previousGoals);
-      }
-    } catch (err) {
-      console.error("Error al actualizar hito:", err);
-      setGoals(previousGoals);
-    }
-  };
-
-  // Eliminar meta con Server Action y rollback
-  const handleDeleteGoal = async (goalId: string) => {
-    const previousGoals = goals;
-    setGoals((prev) => prev.filter((g) => g.id !== goalId));
-
-    try {
-      const res = await deleteGoalAction(goalId);
-      if (res?.error) {
-        console.error("Error al eliminar meta en Supabase:", res.error);
-        setGoals(previousGoals);
-      }
-    } catch (err) {
-      console.error("Error al eliminar meta:", err);
-      setGoals(previousGoals);
-    }
+    const created = await addGoal({
+      title,
+      category,
+      timeframe: newTimeframe,
+      targetDate: newTargetDate || null,
+    });
+    if (created) setNewTargetDate("");
+    else setNewTitle(title);
   };
 
   return (
@@ -187,13 +90,23 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
 
         <select
           value={newTimeframe}
-          onChange={(e) => setNewTimeframe(e.target.value as any)}
+          onChange={(e) => setNewTimeframe(e.target.value as GoalTimeframe)}
           className="bg-zinc-950/60 border border-zinc-700/80 rounded-xl px-3 py-2.5 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
         >
+          <option value="Q1">Q1</option>
+          <option value="Q2">Q2</option>
           <option value="Q3">Q3</option>
           <option value="Q4">Q4</option>
           <option value="Anual">Anual</option>
         </select>
+
+        <input
+          type="date"
+          value={newTargetDate}
+          onChange={(e) => setNewTargetDate(e.target.value)}
+          title="Fecha límite (opcional)"
+          className="hidden sm:block bg-zinc-950/60 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
+        />
 
         <button
           type="submit"
@@ -218,6 +131,8 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
               <div
                 key={goal.id}
                 className={`group relative rounded-2xl bg-zinc-950/60 border transition-all duration-200 p-4 space-y-3 ${
+                  isTempId(goal.id) ? "opacity-60 pointer-events-none " : ""
+                }${
                   isCompleted
                     ? "border-emerald-500/30 bg-emerald-500/[0.02]"
                     : "border-white/[0.06] hover:border-violet-500/40"
@@ -232,7 +147,7 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
                       </span>
                       <span className="text-[10px] text-zinc-500 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {goal.targetDate}
+                        {formatTargetDate(goal.targetDate)}
                       </span>
                     </div>
 
@@ -247,7 +162,7 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
 
                   <button
                     type="button"
-                    onClick={() => handleDeleteGoal(goal.id)}
+                    onClick={() => deleteGoal(goal.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity rounded"
                     title="Eliminar meta"
                   >
@@ -287,7 +202,7 @@ export function FluidGoalsList({ initialGoals }: FluidGoalsListProps) {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => handleToggleMilestone(goal.id, m.id)}
+                      onClick={() => toggleMilestone(goal.id, m.id)}
                       className="w-full text-left flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors cursor-pointer"
                     >
                       {m.completed ? (

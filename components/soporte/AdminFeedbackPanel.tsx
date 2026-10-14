@@ -2,7 +2,8 @@
 
 import React, { useState, useTransition } from 'react';
 import { SupportFeedback, SupportFeedbackStatus, SupportFeedbackType } from '@/lib/types';
-import { updateFeedbackStatusAction, deleteFeedbackAction } from '@/app/actions';
+import { updateFeedbackStatusAction, deleteFeedbackAction } from '@/app/actions/feedback';
+import { useToast } from '@/components/ui/toast';
 import { 
   ShieldCheck, 
   Clock, 
@@ -19,7 +20,6 @@ import {
   Star,
   User,
   ChevronDown,
-  AlertCircle
 } from 'lucide-react';
 
 interface AdminFeedbackPanelProps {
@@ -80,7 +80,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
   const [searchQuery, setSearchQuery] = useState('');
   const [responseInputs, setResponseInputs] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const toast = useToast();
 
   // Metrics
   const totalTickets = feedbacks.length;
@@ -103,55 +103,40 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
     return true;
   });
 
-  const handleStatusChange = async (id: string, newStatus: SupportFeedbackStatus) => {
+  const run = (action: () => Promise<{ ok: true } | { ok: false; error: string }>, successMessage: string) => {
     startTransition(async () => {
-      const res = await updateFeedbackStatusAction(id, newStatus, responseInputs[id] || undefined);
-      if (res.success) {
-        setFeedbackMessage('Estado actualizado correctamente');
-        setTimeout(() => setFeedbackMessage(null), 3000);
-        await onRefresh();
+      const res = await action();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
       }
+      toast.success(successMessage);
+      await onRefresh();
     });
   };
 
-  const handleSendResponse = async (id: string, currentStatus: SupportFeedbackStatus) => {
+  const handleStatusChange = (id: string, newStatus: SupportFeedbackStatus) => {
+    run(
+      () => updateFeedbackStatusAction(id, newStatus, responseInputs[id] || undefined),
+      'Estado actualizado correctamente'
+    );
+  };
+
+  const handleSendResponse = (id: string, currentStatus: SupportFeedbackStatus) => {
     const reply = responseInputs[id];
     if (!reply || !reply.trim()) return;
-
-    startTransition(async () => {
-      // If status was pending, auto transition to in_review
-      const nextStatus = currentStatus === 'pending' ? 'in_review' : currentStatus;
-      const res = await updateFeedbackStatusAction(id, nextStatus, reply.trim());
-      if (res.success) {
-        setFeedbackMessage('Respuesta enviada y registrada');
-        setTimeout(() => setFeedbackMessage(null), 3000);
-        await onRefresh();
-      }
-    });
+    // Si estaba pendiente, pasa automáticamente a "en revisión".
+    const nextStatus = currentStatus === 'pending' ? 'in_review' : currentStatus;
+    run(() => updateFeedbackStatusAction(id, nextStatus, reply.trim()), 'Respuesta enviada y registrada');
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar este feedback permanentemente?')) return;
-
-    startTransition(async () => {
-      const res = await deleteFeedbackAction(id);
-      if (res.success) {
-        setFeedbackMessage('Ticket eliminado');
-        setTimeout(() => setFeedbackMessage(null), 3000);
-        await onRefresh();
-      }
-    });
+    run(() => deleteFeedbackAction(id), 'Ticket eliminado');
   };
 
   return (
     <div className="space-y-6">
-      {/* Toast notification */}
-      {feedbackMessage && (
-        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 rounded-xl text-xs font-medium text-center animate-in fade-in duration-200">
-          {feedbackMessage}
-        </div>
-      )}
-
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-4 bg-[#141414]/90 border border-white/5 rounded-2xl flex flex-col">

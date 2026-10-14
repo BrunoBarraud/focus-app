@@ -1,14 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Habit, HabitCategory } from "@/lib/types";
-import {
-  toggleHabitDayAction,
-  updateHabitTitleAction,
-  addHabitAction,
-  deleteHabitAction,
-} from "@/app/actions";
-import { getDaysInMonth, calculateStreak, getLocalDay } from "@/lib/utils";
+import type { Habit, HabitCategory, HabitMonthView } from "@/lib/types";
+import { useHabits } from "@/components/habitos/useHabits";
 import { Flame, Plus, Check, Edit2, Trash2 } from "lucide-react";
 
 interface HabitTrackerMatrixProps {
@@ -23,7 +17,8 @@ const CATEGORY_COLORS: Record<HabitCategory, { label: string; bg: string; text: 
 };
 
 export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
-  const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
+  const { habits, currentDay, daysInMonth, isPending, toggleDay, addHabit, renameHabit, deleteHabit } =
+    useHabits(initialHabits);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState<string>("");
   const [isAdding, setIsAdding] = React.useState(false);
@@ -31,155 +26,33 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
   const [newHabitCat, setNewHabitCat] = React.useState<HabitCategory>("cuerpo");
   const [newHabitTarget, setNewHabitTarget] = React.useState(20);
 
-  const [mounted, setMounted] = React.useState(false);
-
-  // Sincronizar estado inicial cuando el Server Component revalida y envía datos frescos
-  React.useEffect(() => {
-    setHabits(initialHabits);
-    setMounted(true);
-  }, [initialHabits]);
-
-  // Días del mes y día actual con zona horaria local segura
-  const daysInMonth = mounted ? getDaysInMonth() : 31; // Default to 31 for SSR
   const daysArray = React.useMemo(
     () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
     [daysInMonth]
   );
-  const currentDay = mounted ? getLocalDay() : -1;
 
-  // Toggle de un día con UI optimista y rollback
-  const handleToggle = async (habitId: string, day: number) => {
-    const previousHabits = habits;
-
-    // Optimistic update
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id !== habitId) return h;
-        const newCompleted = { ...h.completedDays, [day]: !h.completedDays[day] };
-        const newStreak = calculateStreak(newCompleted);
-        const completedCount = Object.values(newCompleted).filter(Boolean).length;
-        return {
-          ...h,
-          completedDays: newCompleted,
-          streak: newStreak,
-          bestStreak: Math.max(h.bestStreak, completedCount),
-        };
-      })
-    );
-
-    try {
-      const res = await toggleHabitDayAction(habitId, day);
-      if (res?.error) {
-        console.error("Error al registrar hábito en Supabase:", res.error);
-        setHabits(previousHabits);
-      }
-    } catch (err) {
-      console.error("Error al registrar hábito:", err);
-      setHabits(previousHabits);
-    }
-  };
-
-  // Comenzar edición de título
-  const startEditing = (habit: Habit) => {
+  const startEditing = (habit: HabitMonthView) => {
     setEditingId(habit.id);
     setEditTitle(habit.name);
   };
 
-  // Guardar edición de título con Server Action
-  const saveTitle = async (habitId: string) => {
-    if (!editTitle.trim()) {
-      setEditingId(null);
-      return;
-    }
-    const titleToSave = editTitle.trim();
+  const saveTitle = (habitId: string) => {
+    const title = editTitle.trim();
     setEditingId(null);
-
-    const previousHabits = habits;
-
-    // Optimistic
-    setHabits((prev) =>
-      prev.map((h) => (h.id === habitId ? { ...h, name: titleToSave } : h))
-    );
-
-    try {
-      const res = await updateHabitTitleAction(habitId, titleToSave);
-      if (res?.error) {
-        console.error("Error al actualizar título del hábito:", res.error);
-        setHabits(previousHabits);
-      }
-    } catch (err) {
-      console.error("Error al actualizar título del hábito:", err);
-      setHabits(previousHabits);
-    }
+    if (title) renameHabit(habitId, title);
   };
 
-  // Crear nuevo hábito inline con Server Action
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
-
-    const previousHabits = habits;
-    const tempId = "temp-" + Date.now();
-    const tempHabit: Habit = {
-      id: tempId,
-      name: newHabitName.trim(),
-      category: newHabitCat,
-      monthlyTargetDays: newHabitTarget,
-      streak: 0,
-      bestStreak: 0,
-      color: "#10b981",
-      completedDays: {},
-    };
-
-    setHabits((prev) => [...prev, tempHabit]);
+    const name = newHabitName.trim();
     setNewHabitName("");
     setIsAdding(false);
-
-    try {
-      const res = await addHabitAction({
-        name: tempHabit.name,
-        category: tempHabit.category,
-        monthlyTargetDays: tempHabit.monthlyTargetDays,
-        color: tempHabit.color,
-      });
-
-      if (res?.error) {
-        console.error("Error al agregar hábito en Supabase:", res.error);
-        setHabits(previousHabits);
-      } else if (res?.habit) {
-        // Reemplazar tempId con el id real asignado por Supabase
-        setHabits((prev) =>
-          prev.map((h) =>
-            h.id === tempId
-              ? {
-                  ...h,
-                  id: res.habit.id,
-                }
-              : h
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Error al agregar hábito:", err);
-      setHabits(previousHabits);
-    }
-  };
-
-  // Eliminar hábito con Server Action y rollback
-  const handleDeleteHabit = async (habitId: string) => {
-    const previousHabits = habits;
-    setHabits((prev) => prev.filter((h) => h.id !== habitId));
-
-    try {
-      const res = await deleteHabitAction(habitId);
-      if (res?.error) {
-        console.error("Error al eliminar hábito de Supabase:", res.error);
-        setHabits(previousHabits);
-      }
-    } catch (err) {
-      console.error("Error al eliminar hábito:", err);
-      setHabits(previousHabits);
-    }
+    await addHabit({
+      name,
+      category: newHabitCat,
+      monthlyTargetDays: Math.min(31, Math.max(1, Number(newHabitTarget) || 20)),
+    });
   };
 
   return (
@@ -299,7 +172,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                   colSpan={daysArray.length + 1}
                   className="py-12 text-center text-xs text-zinc-500"
                 >
-                  No tienes hábitos registrados aún. Haz clic en "Nuevo Hábito" para comenzar.
+                  No tienes hábitos registrados aún. Hacé clic en “Nuevo Hábito” para comenzar.
                 </td>
               </tr>
             ) : (
@@ -368,7 +241,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                           </div>
 
                           <button
-                            onClick={() => handleDeleteHabit(habit.id)}
+                            onClick={() => deleteHabit(habit.id)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity rounded"
                             title="Eliminar hábito"
                           >
@@ -382,6 +255,8 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                     {daysArray.map((day) => {
                       const isCompleted = !!habit.completedDays[day];
                       const isToday = day === currentDay;
+                      const isFuture = currentDay === null || day > currentDay;
+                      const pending = isPending(habit.id, day);
 
                       return (
                         <td
@@ -393,9 +268,12 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                           <div className="flex items-center justify-center">
                             <button
                               type="button"
-                              onClick={() => handleToggle(habit.id, day)}
-                              title={`Día ${day}: ${isCompleted ? "Completado" : "Pendiente"}`}
-                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 ${
+                              onClick={() => toggleDay(habit.id, day)}
+                              disabled={isFuture || pending}
+                              title={`Día ${day}: ${isCompleted ? "Completado" : isFuture ? "Futuro" : "Pendiente"}`}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                                isFuture ? "opacity-30 cursor-default" : pending ? "opacity-50 cursor-wait" : "cursor-pointer active:scale-90"
+                              } ${
                                 isCompleted
                                   ? "bg-[#10b981] border border-[#10b981] text-zinc-950 shadow-sm shadow-emerald-500/20"
                                   : "bg-zinc-800/80 border border-zinc-700/60 hover:border-zinc-500 hover:bg-zinc-700/70 text-transparent"
@@ -425,7 +303,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
           <span className="h-2 w-2 rounded-sm bg-[#10b981]" />
           Casilla verde = Hábito cumplido
         </span>
-        <span>Columna resaltada: Día {currentDay} (Hoy)</span>
+        {currentDay !== null && <span>Columna resaltada: Día {currentDay} (Hoy)</span>}
       </div>
     </div>
   );

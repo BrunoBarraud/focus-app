@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { MorningRitual, EnergyLevel } from "@/lib/types";
-import { updateMorningRitualAction } from "@/app/actions";
-import { Target, Zap, ShieldCheck, Check, Edit2, BatteryCharging, Flame, Briefcase } from "lucide-react";
+import type { MorningRitual, EnergyLevel } from "@/lib/types";
+import { updateMorningRitualAction } from "@/app/actions/profile";
+import { useToast } from "@/components/ui/toast";
+import { useServerState } from "@/lib/client-hooks";
+import { Target, Zap, ShieldCheck, Edit2, BatteryCharging, Briefcase } from "lucide-react";
 
 interface InlineMorningRitualProps {
   initialData: MorningRitual;
@@ -17,7 +19,9 @@ const ENERGY_OPTIONS: { level: EnergyLevel; label: string; color: string; bg: st
 ];
 
 export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
-  const [data, setData] = React.useState<MorningRitual>(initialData);
+  const toast = useToast();
+  // Se reemplaza cuando el Server Component revalida y envía datos frescos.
+  const [data, setData] = useServerState<MorningRitual>(initialData);
 
   // Estados de completitud de cada sección (checkbox nativo tintado)
   const [missionDone, setMissionDone] = React.useState(false);
@@ -27,11 +31,6 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
   // Estados de edición inline
   const [editingField, setEditingField] = React.useState<"mission" | "frog" | "pillar" | null>(null);
   const [tempValue, setTempValue] = React.useState<string>("");
-
-  // Sincronizar estado cuando el Server Component revalida y envía datos frescos
-  React.useEffect(() => {
-    setData(initialData);
-  }, [initialData]);
 
   // Iniciar edición inline con un clic
   const handleStartEdit = (field: "mission" | "frog" | "pillar") => {
@@ -48,36 +47,27 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
     const val = tempValue.trim();
     setEditingField(null);
 
-    const previousData = data;
-    const updated = { ...data, [field]: val };
-    setData(updated);
+    const previousValue = data[field];
+    setData((prev) => ({ ...prev, [field]: val }));
 
-    try {
-      const res = await updateMorningRitualAction({ [field]: val });
-      if (res?.error) {
-        console.error("Error al actualizar prioridades:", res.error);
-        setData(previousData);
-      }
-    } catch (err) {
-      console.error("Error al actualizar prioridades:", err);
-      setData(previousData);
+    const res = await updateMorningRitualAction({ [field]: val });
+    if (!res.ok) {
+      // Se revierte solo este campo, no una foto vieja de todo el ritual.
+      setData((prev) => ({ ...prev, [field]: previousValue }));
+      toast.error(res.error);
     }
   };
 
   // Cambiar nivel de energía con Server Action y rollback
   const handleEnergyChange = async (level: EnergyLevel) => {
-    const previousData = data;
+    const previousLevel = data.energyLevel;
+    if (previousLevel === level) return;
     setData((prev) => ({ ...prev, energyLevel: level }));
 
-    try {
-      const res = await updateMorningRitualAction({ energyLevel: level });
-      if (res?.error) {
-        console.error("Error al actualizar energía:", res.error);
-        setData(previousData);
-      }
-    } catch (err) {
-      console.error("Error al actualizar energía:", err);
-      setData(previousData);
+    const res = await updateMorningRitualAction({ energyLevel: level });
+    if (!res.ok) {
+      setData((prev) => ({ ...prev, energyLevel: previousLevel }));
+      toast.error(res.error);
     }
   };
 

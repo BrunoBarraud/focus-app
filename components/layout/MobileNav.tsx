@@ -4,32 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { Sheet } from "@/components/ui/sheet";
 import { NavigationItems } from "./NavigationItems";
-import { Menu, Zap, User, LogOut, LogIn } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
-import { logoutAction, getCurrentUserRoleAction } from "@/app/actions";
-import { UserRole } from "@/lib/types";
+import { Menu, Zap, User, LogIn } from "lucide-react";
+import { LogoutButton } from "./LogoutButton";
+import { NotificationBell } from "./NotificationBell";
+import type { Viewer } from "@/lib/types";
 
-export function MobileNav() {
+export function MobileNav({ viewer }: { viewer: Viewer | null }) {
   const [open, setOpen] = React.useState(false);
-  const [user, setUser] = React.useState<any>(null);
-  const [role, setRole] = React.useState<UserRole>("user");
-
-  React.useEffect(() => {
-    async function getUserData() {
-      try {
-        const { user: currentUser, role: currentRole } = await getCurrentUserRoleAction();
-        setUser(currentUser);
-        setRole(currentRole);
-      } catch {
-        setUser(null);
-        setRole("user");
-      }
-    }
-    getUserData();
-  }, [open]);
-
-  const displayName =
-    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Invitado";
+  const role = viewer?.role ?? "user";
 
   return (
     <>
@@ -43,13 +25,16 @@ export function MobileNav() {
           </span>
         </Link>
 
-        <button
-          onClick={() => setOpen(true)}
-          className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"
-          aria-label="Abrir menú"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {viewer && <NotificationBell />}
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-colors"
+            aria-label="Abrir menú"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       {/* Mobile Drawer */}
@@ -71,7 +56,7 @@ export function MobileNav() {
 
           {/* User Auth Section in Mobile Drawer */}
           <div className="pt-4 border-t border-zinc-800/80 space-y-3">
-            {user ? (
+            {viewer ? (
               <div className="rounded-xl bg-zinc-900/60 p-3 border border-zinc-800 space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
@@ -80,7 +65,7 @@ export function MobileNav() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs font-semibold text-zinc-100 truncate">
-                        {displayName}
+                        {viewer.fullName}
                       </p>
                       <span
                         className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
@@ -93,18 +78,11 @@ export function MobileNav() {
                       </span>
                     </div>
                     <p className="text-[10px] text-zinc-400 truncate">
-                      {user.email}
+                      {viewer.email}
                     </p>
                   </div>
                 </div>
-                <form action={logoutAction}>
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-center gap-1.5 py-1 text-xs text-rose-400 hover:bg-zinc-800 rounded-md transition-colors"
-                  >
-                    <LogOut className="h-3.5 w-3.5" /> Cerrar Sesión
-                  </button>
-                </form>
+                <LogoutButton className="w-full flex items-center justify-center gap-1.5 py-1 text-xs text-rose-400 hover:bg-zinc-800 rounded-md transition-colors" />
               </div>
             ) : (
               <Link

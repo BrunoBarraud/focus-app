@@ -9,13 +9,16 @@ let audioCtx: AudioContext | null = null;
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (AudioContextClass) {
       audioCtx = new AudioContextClass();
     }
   }
   if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume();
+    // Puede fallar si todavía no hubo interacción del usuario; no es crítico.
+    audioCtx.resume().catch(() => {});
   }
   return audioCtx;
 }
@@ -80,43 +83,22 @@ export function playTaskCompletedSound() {
 }
 
 /**
- * Solicitar permiso de Notificaciones al navegador
+ * Fin de un bloque del Pomodoro. Reutiliza el único AudioContext de la app:
+ * crear uno por pitido los acumula y Chrome deja de reproducir sonido.
  */
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (typeof window === "undefined" || !("Notification" in window)) {
-    return false;
-  }
+export function playTimerEndSound(frequency = 880, duration = 0.9) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
 
-  if (Notification.permission === "granted") {
-    playNotificationSound();
-    return true;
-  }
-
-  if (Notification.permission !== "denied") {
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      playNotificationSound();
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
- * Enviar notificación del sistema (con sonido integrado)
- */
-export function sendScheduledNotification(title: string, body: string) {
-  playNotificationSound();
-
-  if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-    try {
-      new Notification(title, {
-        body,
-        icon: "/icon.jpg",
-      });
-    } catch {
-      // Fallback a solo sonido si el navegador bloquea la notificación nativa
-    }
-  }
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(frequency, now);
+  gain.gain.setValueAtTime(0.25, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration);
 }

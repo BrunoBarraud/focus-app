@@ -1,24 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Habit, HabitCategory } from "@/lib/types";
-import { toggleHabitDay, addHabit } from "@/lib/api";
-import { getDaysInMonth } from "@/lib/utils";
+import type { Habit, HabitCategory } from "@/lib/types";
+import { useHabits } from "./useHabits";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import {
-  Flame,
-  Plus,
-  Check,
-  Calendar,
-  Sparkles,
-  Filter,
-  Dumbbell,
-  Brain,
-  Briefcase,
-  Heart,
-} from "lucide-react";
+import { Flame, Plus, Check, Calendar, Dumbbell, Brain, Briefcase, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HabitMatrixProps {
@@ -33,82 +21,34 @@ const CATEGORY_MAP: Record<HabitCategory, { label: string; icon: React.Component
 };
 
 export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
-  const [habits, setHabits] = React.useState<Habit[]>(initialHabits);
+  const { habits, currentDay, daysInMonth, isPending, toggleDay, addHabit } = useHabits(initialHabits);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [pendingToggles, setPendingToggles] = React.useState<Set<string>>(new Set());
 
   // Form state
   const [newHabitName, setNewHabitName] = React.useState("");
   const [newHabitCat, setNewHabitCat] = React.useState<HabitCategory>("mente");
   const [newHabitTarget, setNewHabitTarget] = React.useState(25);
 
-  // Valores dinámicos del mes actual
-  const today = new Date();
-  const currentDay = today.getDate();
-  const daysInMonth = getDaysInMonth();
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   const filteredHabits = habits.filter((h) =>
     selectedCategory === "all" ? true : h.category === selectedCategory
   );
 
-  const handleToggleDay = async (habitId: string, day: number) => {
-    const toggleKey = `${habitId}-${day}`;
-    // No permitir doble-click mientras hay una petición en vuelo
-    if (pendingToggles.has(toggleKey)) return;
-
-    // --- Optimistic UI: actualizar el estado local INMEDIATAMENTE ---
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id !== habitId) return h;
-        const current = !!h.completedDays[day];
-        return {
-          ...h,
-          completedDays: { ...h.completedDays, [day]: !current },
-        };
-      })
-    );
-    setPendingToggles((prev) => new Set(prev).add(toggleKey));
-
-    try {
-      const updated = await toggleHabitDay(habitId, day);
-      setHabits(updated); // Sincronizar con la respuesta real del servidor
-    } catch {
-      // Revertir si falló
-      setHabits((prev) =>
-        prev.map((h) => {
-          if (h.id !== habitId) return h;
-          const current = !!h.completedDays[day];
-          return {
-            ...h,
-            completedDays: { ...h.completedDays, [day]: !current },
-          };
-        })
-      );
-    } finally {
-      setPendingToggles((prev) => {
-        const next = new Set(prev);
-        next.delete(toggleKey);
-        return next;
-      });
-    }
-  };
-
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
 
-    const updated = await addHabit({
+    const created = await addHabit({
       name: newHabitName.trim(),
       category: newHabitCat,
-      monthlyTargetDays: Number(newHabitTarget) || 20,
-      color: "#10b981",
+      monthlyTargetDays: Math.min(31, Math.max(1, Number(newHabitTarget) || 20)),
     });
-
-    setHabits(updated);
-    setNewHabitName("");
-    setIsAddOpen(false);
+    if (created) {
+      setNewHabitName("");
+      setIsAddOpen(false);
+    }
   };
 
   return (
@@ -226,7 +166,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                   const completedCount = Object.values(habit.completedDays).filter(Boolean).length;
                   const percentage = Math.min(
                     100,
-                    Math.round((completedCount / habit.monthlyTargetDays) * 100)
+                    Math.round((completedCount / Math.max(1, habit.monthlyTargetDays)) * 100)
                   );
 
                   return (
@@ -269,9 +209,8 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                       {daysArray.map((day) => {
                         const isDone = !!habit.completedDays[day];
                         const isToday = day === currentDay;
-                        const isFuture = day > currentDay;
-                        const toggleKey = `${habit.id}-${day}`;
-                        const isPending = pendingToggles.has(toggleKey);
+                        const isFuture = currentDay === null || day > currentDay;
+                        const pending = isPending(habit.id, day);
 
                         return (
                           <td
@@ -283,13 +222,13 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                           >
                             <button
                               type="button"
-                              onClick={() => !isFuture && handleToggleDay(habit.id, day)}
-                              disabled={isPending}
+                              onClick={() => !isFuture && toggleDay(habit.id, day)}
+                              disabled={pending || isFuture}
                               title={`Día ${day}: ${isDone ? "Completado" : isFuture ? "Futuro" : "Pendiente"}`}
                               className={cn(
                                 "h-6 w-6 sm:h-7 sm:w-7 rounded-md sm:rounded-lg flex items-center justify-center transition-all duration-150 mx-auto select-none",
-                                isPending && "opacity-50 cursor-wait",
-                                !isPending && !isFuture && "cursor-pointer",
+                                pending && "opacity-50 cursor-wait",
+                                !pending && !isFuture && "cursor-pointer",
                                 isFuture && "cursor-default opacity-30",
                                 isDone
                                   ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm shadow-emerald-500/30"

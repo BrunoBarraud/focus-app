@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createFeedbackAction } from "@/app/actions";
+import { createFeedbackAction } from "@/app/actions/feedback";
 import { SupportFeedback, SupportFeedbackType, SupportFeedbackPriority } from "@/lib/types";
 import {
   Lightbulb,
@@ -84,34 +84,31 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
     setErrorMsg(null);
     setLoading(true);
 
-    try {
-      const res = await createFeedbackAction({
-        type: selectedType,
-        title: title.trim(),
-        description: description.trim(),
-        rating,
-        priority,
-      });
+    const res = await createFeedbackAction({
+      type: selectedType,
+      title: title.trim(),
+      description: description.trim(),
+      rating,
+      priority,
+    });
+    setLoading(false);
 
-      if (res?.error) {
-        setErrorMsg(res.error);
-      } else {
-        setSuccess(true);
-        setTitle("");
-        setDescription("");
-        if (res.feedback && onSuccess) {
-          onSuccess(res.feedback);
-        }
-        setTimeout(() => {
-          setSuccess(false);
-        }, 4000);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message || "Error al enviar feedback.");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      setErrorMsg(res.error);
+      return;
     }
+    setSuccess(true);
+    setTitle("");
+    setDescription("");
+    onSuccess?.(res.data);
   };
+
+  // El aviso de éxito se oculta solo; el timer se limpia si el form se desmonta.
+  React.useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => setSuccess(false), 4000);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-7 shadow-xl">

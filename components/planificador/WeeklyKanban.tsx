@@ -1,31 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { PlannerTask, WeekDay } from "@/lib/types";
-import { toggleTaskCompletion, addTask, deleteTask } from "@/lib/api";
+import type { PlannerData, PlannerOccurrence, TaskPriority, WeekDay } from "@/lib/types";
+import { monthDates, mondayOffset, parseIsoDate, weekDates, weekDayOf } from "@/lib/dates";
+import { useToday } from "@/lib/use-today";
+import { isTempId, usePlanner } from "./usePlanner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import {
-  Calendar,
-  CalendarDays,
-  Clock,
-  Plus,
-  CheckCircle2,
-  Circle,
-  Trash2,
-  Sparkles,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
-  ListTodo,
-} from "lucide-react";
+import { Calendar, CalendarDays, Clock, Plus, CheckCircle2, Circle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playTaskCompletedSound } from "@/lib/sound";
 
 interface WeeklyKanbanProps {
-  initialTasks: PlannerTask[];
+  initialData: PlannerData;
 }
 
 const WEEK_DAYS_BASE: { day: WeekDay; label: string; full: string; dayIndex: number }[] = [
@@ -38,145 +27,114 @@ const WEEK_DAYS_BASE: { day: WeekDay; label: string; full: string; dayIndex: num
   { day: "D", label: "D", full: "Domingo", dayIndex: 0 },
 ];
 
-const DAY_INDEX_MAP: Record<number, WeekDay> = {
-  0: "D",
-  1: "L",
-  2: "M",
-  3: "X",
-  4: "J",
-  5: "V",
-  6: "S",
-};
-
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ];
 
-function formatIsoDate(year: number, month: number, day: number): string {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+export function WeeklyKanban({ initialData }: WeeklyKanbanProps) {
+  const today = useToday();
+  // El servidor no conoce la fecha local del usuario: se espera al cliente.
+  if (!today) return <PlannerSkeleton />;
+  return <WeeklyKanbanBoard initialData={initialData} today={today} />;
 }
 
-export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
-  const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
+function PlannerSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-10 bg-zinc-900 rounded-lg w-1/4" />
+      <div className="flex gap-4 overflow-hidden">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="w-72 h-96 bg-zinc-900 rounded-2xl shrink-0" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; today: string }) {
+  const { occurrences, toggle, addTask, deleteTask, ensureRange } = usePlanner(initialData);
   const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
 
-  // Fecha actual
-  const today = React.useMemo(() => new Date(), []);
-  const todayIso = React.useMemo(
-    () => formatIsoDate(today.getFullYear(), today.getMonth(), today.getDate()),
-    [today]
-  );
-  const todayDayKey: WeekDay = React.useMemo(() => {
-    return DAY_INDEX_MAP[today.getDay()] || "L";
-  }, [today]);
-
-  const [activeDay, setActiveDay] = React.useState<WeekDay>(todayDayKey);
+  const todayIso = today;
+  const [activeDay, setActiveDay] = React.useState<WeekDay>(() => weekDayOf(today));
 
   // Modo mensual: navegación de mes y fecha seleccionada
-  const [displayMonthDate, setDisplayMonthDate] = React.useState<Date>(
-    () => new Date(today.getFullYear(), today.getMonth(), 1)
-  );
+  const [displayMonthDate, setDisplayMonthDate] = React.useState<Date>(() => {
+    const d = parseIsoDate(today);
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
   const [selectedMonthDateIso, setSelectedMonthDateIso] = React.useState<string>(todayIso);
 
-  // Columnas con cálculo dinámico de isToday para modo semana
+  // Columnas L-D de la semana actual, cada una con su fecha real
   const weekColumns = React.useMemo(() => {
-    return WEEK_DAYS_BASE.map((col) => ({
-      ...col,
-      isToday: col.day === todayDayKey,
-    }));
-  }, [todayDayKey]);
+    const dates = weekDates(today);
+    return WEEK_DAYS_BASE.map((col, i) => ({ ...col, date: dates[i], isToday: dates[i] === today }));
+  }, [today]);
 
   // Form states
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
-  const [priority, setPriority] = React.useState<PlannerTask["priority"]>("medium");
+  const [priority, setPriority] = React.useState<TaskPriority>("medium");
   const [estimatedMinutes, setEstimatedMinutes] = React.useState(45);
-  const [tag, setTag] = React.useState("Enfoque");
   const [modalScheduledDate, setModalScheduledDate] = React.useState<string | undefined>(undefined);
   const [modalScheduledTime, setModalScheduledTime] = React.useState<string>("");
+  const [modalRecurring, setModalRecurring] = React.useState(false);
 
   // Inline form para vista mensual
   const [inlineMonthTitle, setInlineMonthTitle] = React.useState("");
   const [inlineMonthTime, setInlineMonthTime] = React.useState("");
-  const [inlineMonthPriority, setInlineMonthPriority] = React.useState<PlannerTask["priority"]>("medium");
+  const [inlineMonthPriority, setInlineMonthPriority] = React.useState<TaskPriority>("medium");
   const [inlineMonthMinutes, setInlineMonthMinutes] = React.useState(30);
 
   // Días del mes mostrado
   const calendarMonthData = React.useMemo(() => {
     const year = displayMonthDate.getFullYear();
     const month = displayMonthDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7; // 0 for Mon, 6 for Sun
-
-    const days: {
-      dayNum: number;
-      iso: string;
-      weekDayKey: WeekDay;
-      isToday: boolean;
-      isSelected: boolean;
-    }[] = [];
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const iso = formatIsoDate(year, month, d);
-      const dayDate = new Date(year, month, d);
-      const weekDayKey = DAY_INDEX_MAP[dayDate.getDay()] || "L";
-      days.push({
-        dayNum: d,
-        iso,
-        weekDayKey,
-        isToday: iso === todayIso,
-        isSelected: iso === selectedMonthDateIso,
-      });
-    }
+    const days = monthDates(year, month).map((iso) => ({
+      dayNum: Number(iso.slice(8, 10)),
+      iso,
+      isToday: iso === todayIso,
+      isSelected: iso === selectedMonthDateIso,
+    }));
 
     return {
       year,
       month,
       monthName: MONTH_NAMES_ES[month],
-      paddingDays: firstDayOfWeek,
+      paddingDays: mondayOffset(year, month),
       days,
     };
   }, [displayMonthDate, todayIso, selectedMonthDateIso]);
 
-  // Función para obtener tareas de una fecha
-  const getTasksForDate = React.useCallback(
-    (isoDate: string, weekDayKey: WeekDay) => {
-      return tasks.filter((t) => {
-        if (t.scheduledDate) {
-          return t.scheduledDate === isoDate;
-        }
-        return t.day === weekDayKey;
-      });
-    },
-    [tasks]
+  // Completados del mes mostrado (al navegar fuera de la ventana inicial)
+  const firstDayShown = calendarMonthData.days[0].iso;
+  const lastDayShown = calendarMonthData.days[calendarMonthData.days.length - 1].iso;
+  React.useEffect(() => {
+    if (viewMode === "month") ensureRange(firstDayShown, lastDayShown);
+  }, [viewMode, firstDayShown, lastDayShown, ensureRange]);
+
+  const selectedMonthTasks = React.useMemo(
+    () => occurrences(selectedMonthDateIso),
+    [selectedMonthDateIso, occurrences]
   );
 
-  const selectedMonthTasks = React.useMemo(() => {
-    const dateObj = new Date(selectedMonthDateIso + "T12:00:00");
-    const weekDayKey = DAY_INDEX_MAP[dateObj.getDay()] || "L";
-    return getTasksForDate(selectedMonthDateIso, weekDayKey);
-  }, [selectedMonthDateIso, getTasksForDate]);
-
-  const handleToggle = async (taskId: string) => {
-    const target = tasks.find((t) => t.id === taskId);
-    if (target && !target.completed) {
-      playTaskCompletedSound();
-    }
-    const updated = await toggleTaskCompletion(taskId);
-    setTasks(updated);
+  const handleToggle = async (task: PlannerOccurrence) => {
+    if (!task.completed) playTaskCompletedSound();
+    await toggle(task);
   };
 
-  const handleDelete = async (taskId: string) => {
-    const updated = await deleteTask(taskId);
-    setTasks(updated);
+  const handleDelete = (taskId: string) => {
+    deleteTask(taskId);
   };
 
   const openAddModal = (day: WeekDay, scheduledDate?: string) => {
     setActiveDay(day);
     setModalScheduledDate(scheduledDate);
     setModalScheduledTime("");
+    setModalRecurring(false);
     setTitle("");
     setDescription("");
     setIsModalOpen(true);
@@ -184,22 +142,25 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
 
-    const updated = await addTask({
+    // Sin recurrencia, la tarea va al día elegido de ESTA semana.
+    const date = weekColumns.find((c) => c.day === activeDay)?.date ?? modalScheduledDate ?? todayIso;
+
+    setSaving(true);
+    const created = await addTask({
       title: title.trim(),
-      description: description.trim(),
-      day: activeDay,
-      scheduledDate: modalScheduledDate,
-      scheduledTime: modalScheduledTime ? modalScheduledTime.trim() : undefined,
+      description: description.trim() || undefined,
+      recurring: modalRecurring,
+      date: modalRecurring ? undefined : date,
+      daysOfWeek: modalRecurring ? [activeDay] : undefined,
+      startTime: modalScheduledTime || undefined,
       priority,
       estimatedMinutes: Number(estimatedMinutes) || 30,
-      completed: false,
-      tag: tag.trim() || "General",
+      tag: "Enfoque",
     });
-
-    setTasks(updated);
-    setIsModalOpen(false);
+    setSaving(false);
+    if (created) setIsModalOpen(false);
   };
 
   const handlePrevMonth = () => {
@@ -211,49 +172,41 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
   };
 
   const handleCurrentMonth = () => {
-    setDisplayMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    const d = parseIsoDate(today);
+    setDisplayMonthDate(new Date(d.getFullYear(), d.getMonth(), 1));
     setSelectedMonthDateIso(todayIso);
   };
 
-  // Crear tarea inline en la vista mensual
+  // Crear tarea inline en la vista mensual (puntual, en la fecha elegida)
   const handleCreateMonthTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inlineMonthTitle.trim()) return;
 
-    const dateObj = new Date(selectedMonthDateIso + "T12:00:00");
-    const weekDayKey = DAY_INDEX_MAP[dateObj.getDay()] || "L";
-
-    const updated = await addTask({
+    const created = await addTask({
       title: inlineMonthTitle.trim(),
-      day: weekDayKey,
-      scheduledDate: selectedMonthDateIso,
-      scheduledTime: inlineMonthTime ? inlineMonthTime.trim() : undefined,
+      recurring: false,
+      date: selectedMonthDateIso,
+      startTime: inlineMonthTime || undefined,
       priority: inlineMonthPriority,
       estimatedMinutes: Number(inlineMonthMinutes) || 30,
-      completed: false,
       tag: "Plan Mensual",
     });
-
-    setTasks(updated);
-    setInlineMonthTitle("");
-    setInlineMonthTime("");
+    if (created) {
+      setInlineMonthTitle("");
+      setInlineMonthTime("");
+    }
   };
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.completed).length;
+  // Progreso de la semana actual (ocurrencias reales)
+  const weekOccurrences = weekColumns.flatMap((c) => occurrences(c.date));
+  const totalTasks = weekOccurrences.length;
+  const completedTasks = weekOccurrences.filter((t) => t.completed).length;
 
-  const selectedMonthDateFormatted = React.useMemo(() => {
-    try {
-      const dateObj = new Date(selectedMonthDateIso + "T12:00:00");
-      return dateObj.toLocaleDateString("es-ES", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      });
-    } catch {
-      return selectedMonthDateIso;
-    }
-  }, [selectedMonthDateIso]);
+  const selectedMonthDateFormatted = parseIsoDate(selectedMonthDateIso).toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <div className="space-y-6">
@@ -321,7 +274,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
       {viewMode === "week" ? (
         <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x min-h-[420px] animate-in fade-in duration-200">
           {weekColumns.map((col) => {
-            const columnTasks = tasks.filter((t) => t.day === col.day);
+            const columnTasks = occurrences(col.date);
             const colCompleted = columnTasks.filter((t) => t.completed).length;
 
             return (
@@ -367,7 +320,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => openAddModal(col.day)}
+                    onClick={() => openAddModal(col.day, col.date)}
                     className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
                   >
                     <Plus className="h-4 w-4" />
@@ -381,7 +334,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                       <p className="text-xs text-zinc-400">Sin tareas programadas</p>
                       <button
                         type="button"
-                        onClick={() => openAddModal(col.day)}
+                        onClick={() => openAddModal(col.day, col.date)}
                         className="text-xs text-violet-400 hover:underline mt-1 font-medium cursor-pointer"
                       >
                         + Añadir una tarea
@@ -390,9 +343,10 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                   ) : (
                     columnTasks.map((task) => (
                       <Card
-                        key={task.id}
+                        key={`${task.id}|${task.occurrenceDate}`}
                         className={cn(
                           "border-zinc-800/80 transition-all duration-200 group hover:border-zinc-700",
+                          isTempId(task.id) && "opacity-60 pointer-events-none",
                           task.completed
                             ? "bg-zinc-900/40 opacity-60 border-zinc-800/40"
                             : "bg-zinc-900/90 shadow-sm"
@@ -402,7 +356,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                           <div className="flex items-start gap-2.5">
                             <button
                               type="button"
-                              onClick={() => handleToggle(task.id)}
+                              onClick={() => handleToggle(task)}
                               className="mt-0.5 text-zinc-400 hover:text-violet-400 transition-colors cursor-pointer shrink-0"
                             >
                               {task.completed ? (
@@ -449,17 +403,22 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                                     : "Baja"}
                                 </Badge>
 
-                                {task.scheduledTime && (
+                                {task.startTime && (
                                   <span className="text-[11px] text-violet-300 font-mono font-medium flex items-center gap-1 bg-violet-500/20 px-1.5 py-0.5 rounded border border-violet-500/30">
                                     <Clock className="h-3 w-3" />
-                                    {task.scheduledTime}
+                                    {task.startTime}
                                   </span>
                                 )}
 
-                                <span className="text-[11px] text-zinc-400 flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {task.estimatedMinutes}m
-                                </span>
+                                {task.estimatedMinutes && (
+                                  <span className="text-[11px] text-zinc-400 flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {task.estimatedMinutes}m
+                                  </span>
+                                )}
+                                {task.recurring && (
+                                  <span className="text-[10px] text-violet-300" title="Se repite cada semana">↻</span>
+                                )}
 
                                 <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[80px]">
                                   #{task.tag}
@@ -486,7 +445,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => openAddModal(col.day)}
+                    onClick={() => openAddModal(col.day, col.date)}
                     className="w-full justify-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 border-zinc-800 hover:bg-zinc-900 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -571,7 +530,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
               {/* Días del mes */}
               {calendarMonthData.days.map((item) => {
-                const dayTasks = getTasksForDate(item.iso, item.weekDayKey);
+                const dayTasks = occurrences(item.iso);
                 const hasPending = dayTasks.some((t) => !t.completed);
                 const isPastDay = item.iso < todayIso;
                 const hasOverdue = isPastDay && hasPending;
@@ -683,9 +642,10 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
               ) : (
                 selectedMonthTasks.map((task) => (
                   <div
-                    key={task.id}
+                    key={`${task.id}|${task.occurrenceDate}`}
                     className={cn(
                       "flex items-center justify-between p-3 rounded-xl border transition-all group",
+                      isTempId(task.id) && "opacity-60 pointer-events-none",
                       task.completed
                         ? "bg-zinc-950/40 border-zinc-800/50 opacity-60"
                         : "bg-zinc-900/90 border-zinc-800 hover:border-zinc-700"
@@ -694,7 +654,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                     <div className="flex items-center gap-3 min-w-0">
                       <button
                         type="button"
-                        onClick={() => handleToggle(task.id)}
+                        onClick={() => handleToggle(task)}
                         className="cursor-pointer text-zinc-400 hover:text-violet-400 transition-colors shrink-0"
                       >
                         {task.completed ? (
@@ -704,10 +664,10 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                         )}
                       </button>
 
-                      {task.scheduledTime && (
+                      {task.startTime && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-violet-500/20 text-violet-300 border border-violet-500/30 shrink-0 font-mono">
                           <Clock className="h-3 w-3" />
-                          {task.scheduledTime}
+                          {task.startTime}
                         </span>
                       )}
 
@@ -740,10 +700,12 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
                       >
                         {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
                       </Badge>
-                      <span className="text-xs text-zinc-400 hidden sm:inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {task.estimatedMinutes}m
-                      </span>
+                      {task.estimatedMinutes && (
+                        <span className="text-xs text-zinc-400 hidden sm:inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {task.estimatedMinutes}m
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(task.id)}
@@ -778,7 +740,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
 
               <select
                 value={inlineMonthPriority}
-                onChange={(e) => setInlineMonthPriority(e.target.value as any)}
+                onChange={(e) => setInlineMonthPriority(e.target.value as TaskPriority)}
                 className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2.5 py-2.5 text-xs sm:text-sm text-zinc-300 focus:outline-none focus:border-violet-500 cursor-pointer"
               >
                 <option value="high">Alta</option>
@@ -880,7 +842,7 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
               </label>
               <select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as PlannerTask["priority"])}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none cursor-pointer"
               >
                 <option value="high">Alta</option>
@@ -904,6 +866,22 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
             </div>
           </div>
 
+          <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={modalRecurring}
+              onChange={(e) => setModalRecurring(e.target.checked)}
+              className="h-4 w-4 accent-violet-500"
+            />
+            Repetir todas las semanas
+            {!modalRecurring && modalScheduledDate && (
+              <span className="text-xs text-zinc-500">
+                (solo el{" "}
+                {parseIsoDate(modalScheduledDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })})
+              </span>
+            )}
+          </label>
+
           <div className="flex justify-end gap-2.5 pt-4 border-t border-zinc-800">
             <Button
               type="button"
@@ -912,8 +890,8 @@ export function WeeklyKanban({ initialTasks }: WeeklyKanbanProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" variant="glow">
-              Crear Tarea
+            <Button type="submit" variant="glow" disabled={saving}>
+              {saving ? "Guardando..." : "Crear Tarea"}
             </Button>
           </div>
         </form>

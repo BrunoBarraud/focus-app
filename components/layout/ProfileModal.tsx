@@ -3,98 +3,83 @@
 import * as React from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/utils/supabase/client";
-import { updateUserProfile, getCurrentUserRoleAction } from "@/app/actions";
-import { User, Calendar, Target, AlertCircle, Check, Crown, Shield } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
+import { getProfileAction, updateProfileAction } from "@/app/actions/profile";
+import type { UserRole } from "@/lib/types";
+import { User, Calendar, Target, AlertCircle, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface ProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  role: UserRole;
 }
 
-export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
+export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModalProps) {
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
 
   const [email, setEmail] = React.useState("");
   const [fullName, setFullName] = React.useState("");
-  const [birthDate, setBirthDate] = React.useState("1995-06-15");
+  const [birthDate, setBirthDate] = React.useState("");
   const [targetAge, setTargetAge] = React.useState(80);
-  const [userRole, setUserRole] = React.useState<"admin" | "user">("user");
 
   React.useEffect(() => {
     if (!open) return;
+    // Si el modal se cierra antes de que llegue la respuesta, se descarta.
+    let cancelled = false;
 
     async function loadData() {
       setLoading(true);
       setErrorMsg(null);
-      setSuccessMsg(null);
-      try {
-        const { user, role: fetchedRole } = await getCurrentUserRoleAction();
-
-        if (user) {
-          setEmail(user.email || "");
-          const metaName = user.user_metadata?.full_name || "";
-          const metaBirth = user.user_metadata?.birth_date || "";
-          setUserRole(fetchedRole);
-
-          const supabase = createClient();
-
-          // Cargar settings desde Supabase
-          const { data: settings } = await supabase
-            .from("user_settings")
-            .select("birth_date, target_age")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          setFullName(metaName || user.email?.split("@")[0] || "");
-          setBirthDate(settings?.birth_date || metaBirth || "1995-06-15");
-          setTargetAge(settings?.target_age || 80);
-        }
-      } catch (err: any) {
-        console.error("Error cargando perfil:", err);
-      } finally {
-        setLoading(false);
+      const res = await getProfileAction();
+      if (cancelled) return;
+      if (res.ok) {
+        setEmail(res.data.email);
+        setFullName(res.data.fullName || res.data.email.split("@")[0]);
+        setBirthDate(res.data.birthDate);
+        setTargetAge(res.data.targetAge);
+      } else {
+        setErrorMsg(res.error);
       }
+      setLoading(false);
     }
 
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    setSuccessMsg(null);
     setSaving(true);
 
-    try {
-      await updateUserProfile({
-        fullName: fullName.trim(),
-        birthDate,
-        targetAge: Number(targetAge) || 80,
-      });
+    const res = await updateProfileAction({
+      fullName: fullName.trim() || undefined,
+      birthDate: birthDate || undefined,
+      targetAge: Number(targetAge) || 80,
+    });
+    setSaving(false);
 
-      setSuccessMsg("¡Perfil actualizado con éxito!");
-      router.refresh();
-      setTimeout(() => {
-        onOpenChange(false);
-      }, 1000);
-    } catch (err: any) {
-      setErrorMsg(err.message || "Error al actualizar perfil");
-    } finally {
-      setSaving(false);
+    if (!res.ok) {
+      setErrorMsg(res.error);
+      return;
     }
+    toast.success("Perfil actualizado.");
+    router.refresh();
+    onOpenChange(false);
   };
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Configurar Perfil & Memento Mori"
+      title="Configurar Perfil"
       description="Personaliza tus datos reales para sincronizar tu identidad y expectativa de vida."
       className="border-violet-500/30 shadow-violet-950/30"
     >
@@ -109,13 +94,6 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
             <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {successMsg && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs">
-              <Check className="h-4 w-4 shrink-0 text-violet-400" />
-              <span>{successMsg}</span>
             </div>
           )}
 

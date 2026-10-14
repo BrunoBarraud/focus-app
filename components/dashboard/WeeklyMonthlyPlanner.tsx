@@ -1,216 +1,118 @@
 "use client";
 
 import * as React from "react";
-import { PlannerTask, WeekDay, Calendar } from "@/lib/types";
-import { addTaskAction, deleteTaskAction, toggleTaskAction, addCalendarAction } from "@/app/actions";
+import type { PlannerData, TaskPriority } from "@/lib/types";
+import { CALENDAR_COLORS } from "@/lib/calendar-colors";
+import { monthDates, mondayOffset, parseIsoDate, weekDates, weekDayOf } from "@/lib/dates";
+import { playTaskCompletedSound } from "@/lib/sound";
+import { useToday } from "@/lib/use-today";
+import { isTempId, usePlanner } from "@/components/planificador/usePlanner";
 import {
   Calendar as CalendarIcon,
   CheckCircle2,
   Circle,
   Plus,
   Trash2,
-  Clock,
-  Tag,
-  ChevronLeft,
-  ChevronRight,
   ListTodo,
   X,
   Loader2,
+  Repeat,
 } from "lucide-react";
 
 interface WeeklyMonthlyPlannerProps {
-  initialTasks: PlannerTask[]; // mapped to calendar_events
-  initialCalendars: Calendar[];
+  initialData: PlannerData;
 }
 
-const MOCK_COLORS = [
-  "bg-violet-500 text-white",
-  "bg-emerald-500 text-white",
-  "bg-blue-500 text-white",
-  "bg-rose-500 text-white",
-  "bg-amber-500 text-white",
-];
-
-function getCurrentDateInfo() {
-  const today = new Date();
-  
-  // Semana actual
-  const dayOfWeek = today.getDay(); // 0 is Sunday
-  const distanceToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - distanceToMonday);
-
-  const keys: WeekDay[] = ["L", "M", "X", "J", "V", "S", "D"];
-  const names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  const shorts = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-  const weekDays = keys.map((key, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return {
-      key,
-      name: names[i],
-      short: shorts[i],
-      dateNum: d.getDate(),
-      isToday: d.toDateString() === today.toDateString()
-    };
-  });
-
-  // Mes actual
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = today.toLocaleString("es-ES", { month: "long", year: "numeric" });
-  const formattedMonthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-
-  const firstDayOfMonth = new Date(year, month, 1).getDay();
-  const startingEmptyCells = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
-
-  const currentDay = today.getDate();
-  const todayKey = weekDays.find(d => d.isToday)?.key || "L";
-
-  return { weekDays, daysInMonth, startingEmptyCells, formattedMonthName, currentDay, todayKey };
-}
-
-const PRIORITY_BADGES = {
+const PRIORITY_BADGES: Record<TaskPriority, string> = {
   high: "bg-rose-500/10 text-rose-400 border-rose-500/20",
   medium: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   low: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
 };
 
-export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyMonthlyPlannerProps) {
-  const dateInfo = React.useMemo(() => getCurrentDateInfo(), []);
-  
-  const [tasks, setTasks] = React.useState<PlannerTask[]>(initialTasks);
-  const [selectedDay, setSelectedDay] = React.useState<WeekDay>(dateInfo.todayKey);
-  const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
-  const [selectedMonthDay, setSelectedMonthDay] = React.useState<number>(dateInfo.currentDay);
+const SHORT_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-  // Calendarios
+const CARD_CLASS =
+  "w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between";
+
+export function WeeklyMonthlyPlanner({ initialData }: WeeklyMonthlyPlannerProps) {
+  const today = useToday();
+  // El servidor corre en UTC: "hoy" solo se conoce en el cliente.
+  if (!today) return <div className={`${CARD_CLASS} min-h-[440px] animate-pulse`} />;
+  return <Planner initialData={initialData} today={today} />;
+}
+
+function Planner({ initialData, today }: { initialData: PlannerData; today: string }) {
+  const { calendars, occurrences, toggle, addTask, deleteTask, addCalendar } = usePlanner(initialData);
+
+  const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
+  const [selectedDate, setSelectedDate] = React.useState<string>(today);
   const [selectedCalendar, setSelectedCalendar] = React.useState<string>("all");
 
   // Formulario inline rápido
   const [newTaskTitle, setNewTaskTitle] = React.useState("");
-  const [newTaskPriority, setNewTaskPriority] = React.useState<"high" | "medium" | "low">("medium");
+  const [newTaskPriority, setNewTaskPriority] = React.useState<TaskPriority>("medium");
   const [newTaskStartTime, setNewTaskStartTime] = React.useState("");
+  const [newTaskRecurring, setNewTaskRecurring] = React.useState(false);
 
   // Añadir calendario
   const [isAddingCalendar, setIsAddingCalendar] = React.useState(false);
   const [newCalendarName, setNewCalendarName] = React.useState("");
   const [isPendingCalendar, setIsPendingCalendar] = React.useState(false);
-  const [newTaskTag, setNewTaskTag] = React.useState("Enfoque");
 
-  // Combinar calendarios de BD con la opción "Todos"
-  const viewCalendars = React.useMemo(() => {
-    const allOpt = { id: "all", name: "Todos los Calendarios", color: "bg-white text-zinc-950" };
-    const mapped = (initialCalendars || []).map((cal, i) => ({
-      id: cal.id,
-      name: cal.name,
-      color: MOCK_COLORS[i % MOCK_COLORS.length],
-    }));
-    return [allOpt, ...mapped];
-  }, [initialCalendars]);
+  const week = React.useMemo(() => weekDates(today), [today]);
+  const month = React.useMemo(() => {
+    const d = parseIsoDate(today);
+    const year = d.getFullYear();
+    const monthIndex = d.getMonth();
+    const name = d.toLocaleString("es-ES", { month: "long", year: "numeric" });
+    return {
+      dates: monthDates(year, monthIndex),
+      offset: mondayOffset(year, monthIndex),
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+    };
+  }, [today]);
 
-  // Sincronizar estado cuando el Server Component revalida
-  React.useEffect(() => {
-    setTasks(initialTasks);
-  }, [initialTasks]);
+  const viewCalendars = React.useMemo(
+    () => [{ id: "all", name: "Todos los Calendarios", color: "bg-white text-zinc-950" }, ...calendars],
+    [calendars]
+  );
 
-  // Filtrar tareas según el día seleccionado y el calendario
-  const dayTasks = React.useMemo(() => {
-    return tasks.filter((t) => {
-      const dayMatch = t.day === selectedDay;
-      const calMatch = selectedCalendar === "all" || t.calendar_id === selectedCalendar;
-      return dayMatch && calMatch;
-    }).sort((a, b) => {
-      if (!a.start_time) return 1;
-      if (!b.start_time) return -1;
-      return a.start_time.localeCompare(b.start_time);
-    });
-  }, [tasks, selectedDay, selectedCalendar]);
+  const tasksOn = React.useCallback(
+    (date: string) =>
+      occurrences(date).filter((t) => selectedCalendar === "all" || t.calendarId === selectedCalendar),
+    [occurrences, selectedCalendar]
+  );
 
-  // Alternar estado de completitud con Server Action y rollback
-  const handleToggleTask = async (taskId: string) => {
-    const previousTasks = tasks;
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
-    );
+  const dayTasks = tasksOn(selectedDate);
+  const selectedLabel = parseIsoDate(selectedDate).toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+  });
 
-    try {
-      const res = await toggleTaskAction(taskId);
-      if (res?.error) {
-        console.error("Error al actualizar tarea:", res.error);
-        setTasks(previousTasks);
-      }
-    } catch (err) {
-      console.error("Error al actualizar tarea:", err);
-      setTasks(previousTasks);
-    }
+  const handleToggleTask = (task: (typeof dayTasks)[number]) => {
+    if (!task.completed) playTaskCompletedSound();
+    toggle(task);
   };
 
-  // Crear tarea inline con Server Action
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    const title = newTaskTitle.trim();
+    if (!title) return;
 
-    const previousTasks = tasks;
-    const tempId = "temp-" + Date.now();
-    const tempTask: PlannerTask = {
-      id: tempId,
-      title: newTaskTitle.trim(),
-      day: selectedDay,
-      priority: newTaskPriority,
-      estimatedMinutes: 30,
-      start_time: newTaskStartTime || undefined,
-      calendar_id: selectedCalendar !== "all" ? selectedCalendar : undefined,
-      completed: false,
-      tag: newTaskTag,
-    };
-
-    setTasks((prev) => [...prev, tempTask]);
     setNewTaskTitle("");
     setNewTaskStartTime("");
-
-    try {
-      const res = await addTaskAction({
-        title: tempTask.title,
-        day: tempTask.day,
-        priority: tempTask.priority,
-        completed: false,
-        start_time: tempTask.start_time,
-        calendar_id: tempTask.calendar_id,
-        tag: tempTask.tag,
-      });
-
-      if (res?.error) {
-        console.error("Error al añadir tarea en Supabase:", res.error);
-        setTasks(previousTasks);
-      } else if (res?.task) {
-        setTasks((prev) =>
-          prev.map((t) => (t.id === tempId ? { ...t, id: res.task.id } : t))
-        );
-      }
-    } catch (err) {
-      console.error("Error al añadir tarea:", err);
-      setTasks(previousTasks);
-    }
-  };
-
-  // Eliminar tarea con Server Action y rollback
-  const handleDeleteTask = async (taskId: string) => {
-    const previousTasks = tasks;
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-
-    try {
-      const res = await deleteTaskAction(taskId);
-      if (res?.error) {
-        console.error("Error al eliminar tarea:", res.error);
-        setTasks(previousTasks);
-      }
-    } catch (err) {
-      console.error("Error al eliminar tarea:", err);
-      setTasks(previousTasks);
-    }
+    const created = await addTask({
+      title,
+      recurring: newTaskRecurring,
+      date: newTaskRecurring ? undefined : selectedDate,
+      daysOfWeek: newTaskRecurring ? [weekDayOf(selectedDate)] : undefined,
+      priority: newTaskPriority,
+      startTime: newTaskStartTime || undefined,
+      calendarId: selectedCalendar !== "all" ? selectedCalendar : undefined,
+      tag: "Enfoque",
+    });
+    // Si falló, se devuelve el texto para no perder lo que se escribió.
+    if (!created) setNewTaskTitle(title);
   };
 
   const handleAddCalendar = async (e: React.FormEvent) => {
@@ -218,63 +120,44 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
     if (!newCalendarName.trim()) return;
 
     setIsPendingCalendar(true);
-    const randomColor = MOCK_COLORS[Math.floor(Math.random() * MOCK_COLORS.length)];
-    
-    const res = await addCalendarAction(newCalendarName, randomColor);
-    if (!res.error) {
+    const color = CALENDAR_COLORS[calendars.length % CALENDAR_COLORS.length];
+    const created = await addCalendar(newCalendarName.trim(), color);
+    setIsPendingCalendar(false);
+    if (created) {
       setNewCalendarName("");
       setIsAddingCalendar(false);
-    } else {
-      alert("Error: " + res.error);
     }
-    setIsPendingCalendar(false);
   };
 
-  // Datos para vista mensual compacta
-  const monthDays = React.useMemo(() => Array.from({ length: dateInfo.daysInMonth }, (_, i) => i + 1), [dateInfo.daysInMonth]);
-
   return (
-    <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col justify-between">
-      {/* Header con Switch Semana / Mes */}
+    <div className={CARD_CLASS}>
       <div>
+        {/* Header con Switch Semana / Mes */}
         <div className="flex items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
               <CalendarIcon className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Organizador Inteligente
-              </h2>
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Organizador Inteligente</h2>
               <p className="text-xs text-zinc-400">
-                {viewMode === "week" 
-                  ? `Semana en curso • ${dateInfo.weekDays.find(d => d.isToday)?.short || ""} ${dateInfo.currentDay} (Hoy)` 
-                  : `Calendario del Mes • ${dateInfo.formattedMonthName}`}
+                {viewMode === "week" ? "Semana en curso" : `Calendario del Mes • ${month.name}`}
               </p>
             </div>
           </div>
 
           <div className="flex items-center bg-zinc-950/80 p-1 rounded-xl border border-white/10">
-            <button
-              onClick={() => setViewMode("week")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                viewMode === "week"
-                  ? "bg-violet-600 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Semana
-            </button>
-            <button
-              onClick={() => setViewMode("month")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                viewMode === "month"
-                  ? "bg-violet-600 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              Ver Mes
-            </button>
+            {(["week", "month"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  viewMode === mode ? "bg-violet-600 text-white shadow-sm" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {mode === "week" ? "Semana" : "Ver Mes"}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -294,29 +177,26 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
             </button>
           ))}
 
-          {/* Formulario/Botón para añadir nuevo calendario */}
           {isAddingCalendar ? (
-            <form 
-              onSubmit={handleAddCalendar}
-              className="flex items-center gap-1 min-w-[150px] shrink-0"
-            >
+            <form onSubmit={handleAddCalendar} className="flex items-center gap-1 min-w-[150px] shrink-0">
               <input
                 autoFocus
                 type="text"
                 placeholder="Nombre..."
+                maxLength={60}
                 value={newCalendarName}
                 onChange={(e) => setNewCalendarName(e.target.value)}
                 className="bg-zinc-900 border border-zinc-700/80 rounded-full px-3 py-1 text-xs text-white focus:outline-none focus:border-violet-500 w-24"
                 disabled={isPendingCalendar}
               />
-              <button 
+              <button
                 type="submit"
                 disabled={isPendingCalendar}
                 className="bg-violet-600 text-white rounded-full p-1.5 hover:bg-violet-500 transition-colors"
               >
                 {isPendingCalendar ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsAddingCalendar(false)}
                 className="bg-zinc-800 text-zinc-400 rounded-full p-1.5 hover:text-white transition-colors"
@@ -336,231 +216,218 @@ export function WeeklyMonthlyPlanner({ initialTasks, initialCalendars }: WeeklyM
           )}
         </div>
 
-        {/* 1. VISTA SEMANA: Slider horizontal interactivo con días */}
         {viewMode === "week" ? (
-          <div className="space-y-4">
-            {/* Slider de Días de la Semana */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {dateInfo.weekDays.map((d) => {
-                const isSelected = selectedDay === d.key;
-                const isToday = d.isToday;
-                const tasksForDay = tasks.filter((t) => t.day === d.key);
-                const completedCount = tasksForDay.filter((t) => t.completed).length;
+          /* 1. VISTA SEMANA: días reales de la semana en curso */
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none mb-4">
+            {week.map((date, i) => {
+              const isSelected = selectedDate === date;
+              const isToday = date === today;
+              const tasksForDay = tasksOn(date);
+              const completedCount = tasksForDay.filter((t) => t.completed).length;
 
-                return (
-                  <button
-                    key={d.key}
-                    type="button"
-                    onClick={() => setSelectedDay(d.key)}
-                    className={`flex-1 min-w-[76px] sm:min-w-[88px] py-2.5 px-2 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
-                      isSelected
-                        ? "bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/10 ring-1 ring-violet-500"
-                        : "bg-zinc-950/50 border-white/[0.06] text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setSelectedDate(date)}
+                  className={`flex-1 min-w-[76px] sm:min-w-[88px] py-2.5 px-2 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
+                    isSelected
+                      ? "bg-violet-600/20 border-violet-500 text-white shadow-lg shadow-violet-500/10 ring-1 ring-violet-500"
+                      : "bg-zinc-950/50 border-white/[0.06] text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1 w-full">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold">{SHORT_NAMES[i]}</span>
+                    {isToday && (
+                      <span className="px-1.5 py-0.5 text-[8px] font-black bg-emerald-400 text-zinc-950 rounded-md tracking-wider leading-none">
+                        HOY
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`text-lg sm:text-xl font-extrabold block my-0.5 ${
+                      isToday ? "text-emerald-400" : isSelected ? "text-white" : "text-zinc-200"
                     }`}
                   >
-                    <div className="flex items-center justify-center gap-1 w-full">
-                      <span className="text-[11px] uppercase tracking-wider font-semibold">
-                        {d.short}
-                      </span>
-                      {isToday && (
-                        <span className="px-1.5 py-0.5 text-[8px] font-black bg-emerald-400 text-zinc-950 rounded-md tracking-wider leading-none shadow-xs">
-                          HOY
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`text-lg sm:text-xl font-extrabold block my-0.5 ${
-                        isToday ? "text-emerald-400" : isSelected ? "text-white" : "text-zinc-200"
-                      }`}
-                    >
-                      {d.dateNum}
-                    </span>
-                    <div className="flex items-center justify-center gap-1 text-[10px] text-zinc-400">
-                      <span>
-                        {tasksForDay.length > 0 ? `${completedCount}/${tasksForDay.length}` : "—"}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Expansión de Tareas in-situ para el día seleccionado */}
-            <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-4 space-y-3">
-              <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-white/[0.06] pb-2">
-                <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
-                  <ListTodo className="h-3.5 w-3.5 text-violet-400" />
-                  Tareas para {dateInfo.weekDays.find((d) => d.key === selectedDay)?.name}{" "}
-                  {dateInfo.weekDays.find((d) => d.key === selectedDay)?.dateNum}
-                </span>
-                <span>{dayTasks.length} planificadas</span>
-              </div>
-
-              {/* Lista de Tareas in-situ */}
-              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                {dayTasks.length === 0 ? (
-                  <div className="py-6 text-center text-xs text-zinc-500">
-                    No hay tareas para este día. Escribe abajo para añadir una.
-                  </div>
-                ) : (
-                  dayTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                        task.completed
-                          ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
-                          : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleTask(task.id)}
-                          className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                          ) : (
-                            <Circle className="h-4 w-4" />
-                          )}
-                        </button>
-                        <span
-                          className={`text-xs font-medium truncate ${
-                            task.completed ? "line-through text-zinc-500" : "text-zinc-200"
-                          }`}
-                        >
-                          {task.title}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {task.start_time && (
-                          <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded-md border border-white/[0.05]">
-                            {task.start_time} {task.end_time ? `- ${task.end_time}` : ""}
-                          </span>
-                        )}
-                        <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase hidden sm:inline-flex ${
-                            PRIORITY_BADGES[task.priority] || PRIORITY_BADGES.medium
-                          }`}
-                        >
-                          {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Formulario Inline rápido para agregar tareas */}
-              <form onSubmit={handleAddTask} className="pt-2 flex flex-col sm:flex-row items-center gap-2">
-                <input
-                  type="text"
-                  placeholder={`+ Nueva tarea o evento...`}
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className="flex-1 w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
-                />
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <input
-                    type="time"
-                    value={newTaskStartTime}
-                    onChange={(e) => setNewTaskStartTime(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 w-24"
-                  />
-                  
-                  <select
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value as any)}
-                    className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
-                  >
-                    <option value="high">Alta</option>
-                    <option value="medium">Media</option>
-                    <option value="low">Baja</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
-                >
-                  <Plus className="h-4 w-4" />
+                    {Number(date.slice(8, 10))}
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    {tasksForDay.length > 0 ? `${completedCount}/${tasksForDay.length}` : "—"}
+                  </span>
                 </button>
-              </form>
-            </div>
+              );
+            })}
           </div>
         ) : (
-          /* 2. VISTA MES: Calendario compacto editable */
-          <div className="space-y-4 animate-in fade-in duration-200">
+          /* 2. VISTA MES: fechas reales del mes en curso */
+          <div className="space-y-2 mb-4 animate-in fade-in duration-200">
             <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold text-zinc-500 pb-1">
-              <span>L</span>
-              <span>M</span>
-              <span>X</span>
-              <span>J</span>
-              <span>V</span>
-              <span>S</span>
-              <span>D</span>
+              {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
+                <span key={d}>{d}</span>
+              ))}
             </div>
-
             <div className="grid grid-cols-7 gap-1.5">
-              {Array.from({ length: dateInfo.startingEmptyCells }).map((_, i) => (
+              {Array.from({ length: month.offset }).map((_, i) => (
                 <div key={`empty-${i}`} className="h-12 border border-transparent" />
               ))}
-              {monthDays.map((d) => {
-                const isToday = d === dateInfo.currentDay;
-                const isSelected = selectedMonthDay === d;
-                const dayMod = (d - 1 + dateInfo.startingEmptyCells) % 7;
-                const dayKey = dateInfo.weekDays[dayMod]?.key || "L";
-                const dayCount = tasks.filter((t) => t.day === dayKey).length;
-
+              {month.dates.map((date) => {
+                const isToday = date === today;
+                const isSelected = selectedDate === date;
+                const count = tasksOn(date).length;
                 return (
                   <button
-                    key={d}
+                    key={date}
                     type="button"
-                    onClick={() => {
-                      setSelectedMonthDay(d);
-                      setSelectedDay(dayKey);
-                    }}
+                    onClick={() => setSelectedDate(date)}
                     className={`h-12 rounded-xl border flex flex-col items-center justify-between p-1.5 transition-all cursor-pointer ${
-                      isToday
-                        ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold ring-1 ring-emerald-500/30"
-                        : isSelected
+                      isSelected
                         ? "bg-violet-600/20 border-violet-500 text-white"
-                        : "bg-zinc-950/40 border-white/[0.04] text-zinc-400 hover:bg-zinc-800/40"
+                        : isToday
+                          ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-bold ring-1 ring-emerald-500/30"
+                          : "bg-zinc-950/40 border-white/[0.04] text-zinc-400 hover:bg-zinc-800/40"
                     }`}
                   >
-                    <span className="text-xs">{d}</span>
+                    <span className="text-xs">{Number(date.slice(8, 10))}</span>
                     <div className="flex gap-0.5">
-                      {dayCount > 0 && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
-                      )}
+                      {count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />}
                     </div>
                   </button>
                 );
               })}
-            </div>
-
-            <div className="p-3 rounded-xl bg-zinc-950/60 border border-white/[0.06] text-xs flex items-center justify-between">
-              <span className="text-zinc-400">
-                Día seleccionado: <strong className="text-white">Día {selectedMonthDay}</strong>
-              </span>
-              <button
-                onClick={() => setViewMode("week")}
-                className="text-violet-400 hover:underline font-medium"
-              >
-                Abrir en vista detallada &rarr;
-              </button>
             </div>
           </div>
         )}
+
+        {/* Tareas del día seleccionado (en ambas vistas) */}
+        <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-4 space-y-3">
+          <div className="flex items-center justify-between text-xs text-zinc-400 border-b border-white/[0.06] pb-2">
+            <span className="font-semibold text-zinc-300 flex items-center gap-1.5 capitalize">
+              <ListTodo className="h-3.5 w-3.5 text-violet-400" />
+              Tareas para el {selectedLabel}
+              {selectedDate === today && " (hoy)"}
+            </span>
+            <span>{dayTasks.length} planificadas</span>
+          </div>
+
+          <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+            {dayTasks.length === 0 ? (
+              <div className="py-6 text-center text-xs text-zinc-500">
+                No hay tareas para este día. Escribí abajo para añadir una.
+              </div>
+            ) : (
+              dayTasks.map((task) => (
+                <div
+                  key={`${task.id}|${task.occurrenceDate}`}
+                  className={`group flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                    task.completed
+                      ? "bg-zinc-900/40 border-white/[0.03] opacity-60"
+                      : "bg-zinc-900/80 border-white/[0.06] hover:border-violet-500/40"
+                  } ${isTempId(task.id) ? "opacity-60 pointer-events-none" : ""}`}
+                >
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTask(task)}
+                      className="cursor-pointer text-zinc-500 hover:text-violet-400 transition-colors shrink-0"
+                      aria-label={task.completed ? "Marcar como pendiente" : "Marcar como completada"}
+                    >
+                      {task.completed ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      ) : (
+                        <Circle className="h-4 w-4" />
+                      )}
+                    </button>
+                    <span
+                      className={`text-xs font-medium truncate ${
+                        task.completed ? "line-through text-zinc-500" : "text-zinc-200"
+                      }`}
+                    >
+                      {task.title}
+                    </span>
+                    {task.recurring && (
+                      <span title="Se repite cada semana">
+                        <Repeat className="h-3 w-3 text-violet-300 shrink-0" />
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {task.startTime && (
+                      <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded-md border border-white/[0.05]">
+                        {task.startTime} {task.endTime ? `- ${task.endTime}` : ""}
+                      </span>
+                    )}
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase hidden sm:inline-flex ${PRIORITY_BADGES[task.priority]}`}
+                    >
+                      {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteTask(task.id)}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-zinc-600 hover:text-rose-400 transition-opacity"
+                      aria-label="Eliminar tarea"
+                      title={task.recurring ? "Elimina la tarea de todas las semanas" : "Eliminar tarea"}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Formulario Inline rápido */}
+          <form onSubmit={handleAddTask} className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+            <input
+              type="text"
+              placeholder="+ Nueva tarea o evento..."
+              maxLength={200}
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              className="flex-1 w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
+            />
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="time"
+                value={newTaskStartTime}
+                onChange={(e) => setNewTaskStartTime(e.target.value)}
+                className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 w-24"
+              />
+              <select
+                value={newTaskPriority}
+                onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
+                className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2 py-2 text-xs text-zinc-300 focus:outline-none focus:border-violet-500"
+              >
+                <option value="high">Alta</option>
+                <option value="medium">Media</option>
+                <option value="low">Baja</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setNewTaskRecurring((v) => !v)}
+                aria-pressed={newTaskRecurring}
+                title="Repetir todas las semanas este mismo día"
+                className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
+                  newTaskRecurring
+                    ? "bg-violet-600/30 border-violet-500 text-violet-200"
+                    : "bg-zinc-900 border-zinc-700/80 text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Repeat className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              className="px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0"
+              aria-label="Agregar tarea"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -73,7 +73,7 @@ export function UserFeedbackHistory({ feedbacks }: UserFeedbackHistoryProps) {
         </div>
         <h3 className="text-base font-bold text-zinc-200">Aún no has enviado solicitudes</h3>
         <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1">
-          Usa la pestaña "Enviar Feedback" para sugerir nuevas ideas o reportar cualquier inconveniente.
+          Usá la pestaña “Enviar Feedback” para sugerir nuevas ideas o reportar cualquier inconveniente.
         </p>
       </div>
     );
