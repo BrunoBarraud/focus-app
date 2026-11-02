@@ -488,7 +488,7 @@ export type Database = {
       }
       user_settings: {
         Row: {
-          birth_date: string
+          birth_date: string | null
           daily_frog: string | null
           daily_mission: string | null
           daily_pillar: string | null
@@ -502,7 +502,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          birth_date: string
+          birth_date?: string | null
           daily_frog?: string | null
           daily_mission?: string | null
           daily_pillar?: string | null
@@ -516,7 +516,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          birth_date?: string
+          birth_date?: string | null
           daily_frog?: string | null
           daily_mission?: string | null
           daily_pillar?: string | null

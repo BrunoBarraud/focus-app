@@ -21,7 +21,7 @@ const CATEGORY_MAP: Record<HabitCategory, { label: string; icon: React.Component
 };
 
 export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
-  const { habits, currentDay, daysInMonth, isPending, toggleDay, addHabit } = useHabits(initialHabits);
+  const { habits, ready, currentDay, daysInMonth, isPending, toggleDay, addHabit } = useHabits(initialHabits);
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [isAddOpen, setIsAddOpen] = React.useState(false);
 
@@ -57,13 +57,13 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-            <Calendar className="h-3.5 w-3.5" /> Matriz Mensual
+            <Calendar className="h-3.5 w-3.5" /> Este mes
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Panel de Hábitos
+            Hábitos
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400">
-            Control de consistencia diaria. La excelencia es un hábito, no un acto.
+            Marcá cada día lo que cumpliste. La racha y el progreso se calculan solos.
           </p>
         </div>
 
@@ -118,7 +118,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
               <thead>
                 <tr className="border-b border-zinc-800/80 bg-zinc-900/50 text-zinc-400 text-[11px] font-semibold uppercase tracking-wider">
                   <th className="py-3 px-3 sm:px-4 sticky left-0 z-20 bg-zinc-900 min-w-[200px] sm:min-w-[240px]">
-                    Hábito & Categoría
+                    Hábito
                   </th>
                   <th className="py-3 px-2 sm:px-3 text-center min-w-[70px] sm:min-w-[80px]">Racha</th>
                   {daysArray.map((d) => (
@@ -139,17 +139,23 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
               </thead>
 
               <tbody className="divide-y divide-zinc-800/60 text-sm">
-                {filteredHabits.length === 0 ? (
+                {!ready ? (
+                  <tr>
+                    <td colSpan={daysArray.length + 3} className="py-16">
+                      <div className="mx-auto h-4 w-48 rounded bg-zinc-800/80 animate-pulse" aria-label="Cargando hábitos" />
+                    </td>
+                  </tr>
+                ) : filteredHabits.length === 0 ? (
                   <tr>
                     <td
                       colSpan={daysArray.length + 3}
                       className="py-16 text-center text-zinc-400"
                     >
                       <p className="text-sm font-semibold text-zinc-200">
-                        No hay hábitos en tu catálogo todavía.
+                        Todavía no tenés hábitos.
                       </p>
                       <p className="text-xs text-zinc-400 mt-1">
-                        Cada gran cambio comienza con un hábito atómico.
+                        Creá el primero y empezá a marcarlo hoy.
                       </p>
                       <button
                         type="button"
@@ -183,14 +189,14 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                           <div className="flex items-center gap-2 mt-1">
                             <span
                               className={cn(
-                                "inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border",
+                                "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md border",
                                 catConfig.color
                               )}
                             >
                               <catConfig.icon className="h-3 w-3" />
                               {catConfig.label}
                             </span>
-                            <span className="text-[10px] text-zinc-400">
+                            <span className="text-[11px] text-zinc-400">
                               Meta: {habit.monthlyTargetDays}d
                             </span>
                           </div>
@@ -247,7 +253,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
                           <span className="font-mono text-xs font-bold text-zinc-200">
                             {percentage}%
                           </span>
-                          <span className="text-[10px] text-zinc-400">
+                          <span className="text-[11px] text-zinc-400">
                             {completedCount}/{habit.monthlyTargetDays} d
                           </span>
                         </div>
@@ -265,18 +271,18 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
       <Dialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        title="Crear Nuevo Hábito"
-        description="Establece una rutina atómica que impulse tu visión a largo plazo."
+        title="Nuevo hábito"
+        description="Elegí algo concreto que quieras hacer seguido."
       >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Nombre del Hábito
+              Nombre
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Tomar 2.5L de agua, Caminata 30m..."
+              placeholder="Ej: Caminar 30 minutos"
               value={newHabitName}
               onChange={(e) => setNewHabitName(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
@@ -302,7 +308,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
 
             <div>
               <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-                Objetivo Días / Mes
+                Meta de días por mes
               </label>
               <input
                 type="number"
@@ -324,7 +330,7 @@ export function HabitMatrix({ initialHabits }: HabitMatrixProps) {
               Cancelar
             </Button>
             <Button type="submit" variant="glow">
-              Guardar Hábito
+              Guardar hábito
             </Button>
           </div>
         </form>

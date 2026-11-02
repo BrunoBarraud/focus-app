@@ -42,7 +42,7 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
     setActiveTab('history');
   };
 
-  // Un admin recibe todos los tickets; "Mis Solicitudes" muestra solo los propios.
+  // Un admin recibe todos los tickets; "Mis mensajes" muestra solo los propios.
   const myFeedbacks = feedbacks.filter((f) => f.userId === viewer.id);
   const pendingCount = feedbacks.filter((f) => f.status === 'pending').length;
 
@@ -52,13 +52,13 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-widest mb-1.5">
-            <LifeBuoy className="w-4 h-4" /> Centro de Soporte & Feedback
+            <LifeBuoy className="w-4 h-4" /> Ayuda
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            ¿Cómo podemos mejorar tu experiencia?
+            Soporte
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Tu opinión da forma a las próximas funcionalidades de Focus. Comparte sugerencias, mejoras o reportes.
+            Mandanos sugerencias, consultas o errores que encuentres, y seguí las respuestas acá.
           </p>
         </div>
 
@@ -74,7 +74,7 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
             {role === 'admin' ? (
               <>
                 <Shield className="w-3.5 h-3.5 text-amber-400" />
-                <span>Rol: 👑 Administrador</span>
+                <span>Rol: administrador</span>
               </>
             ) : (
               <>
@@ -106,7 +106,7 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
           }`}
         >
           <Send className="w-3.5 h-3.5" />
-          <span>Enviar Feedback</span>
+          <span>Nuevo mensaje</span>
         </button>
 
         <button
@@ -118,9 +118,9 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
-          <span>Mis Solicitudes</span>
+          <span>Mis mensajes</span>
           {myFeedbacks.length > 0 && (
-            <span className="px-1.5 py-0.2 bg-white/10 text-zinc-300 rounded-full text-[10px] font-semibold">
+            <span className="px-1.5 py-0.2 bg-white/10 text-zinc-300 rounded-full text-[11px] font-semibold">
               {myFeedbacks.length}
             </span>
           )}
@@ -136,9 +136,9 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Panel Admin</span>
+            <span>Administración</span>
             {pendingCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-amber-500 text-black font-bold rounded-full text-[10px]">
+              <span className="px-1.5 py-0.2 bg-amber-500 text-black font-bold rounded-full text-[11px]">
                 {pendingCount}
               </span>
             )}
@@ -157,7 +157,7 @@ export function SoporteClient({ viewer, initialFeedbacks }: { viewer: Viewer; in
                   ¿Tenés una idea para Focus o encontraste un comportamiento raro?
                 </p>
                 <p className="text-zinc-400 leading-relaxed">
-                  Completa el formulario a continuación indicando si es una sugerencia, mejora visual, duda o reporte de bug. Te avisamos acá mismo cuando tengamos una respuesta.
+                  Elegí el tipo de mensaje y contanos. La respuesta te aparece en “Mis mensajes”.
                 </p>
               </div>
             </div>

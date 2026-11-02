@@ -5,60 +5,81 @@ import type { MorningRitual, EnergyLevel } from "@/lib/types";
 import { updateMorningRitualAction } from "@/app/actions/profile";
 import { useToast } from "@/components/ui/toast";
 import { useServerState } from "@/lib/client-hooks";
-import { Target, Zap, ShieldCheck, Edit2, BatteryCharging, Briefcase } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Target, Zap, ShieldCheck, Edit2, BatteryCharging, ListChecks } from "lucide-react";
 
 interface InlineMorningRitualProps {
   initialData: MorningRitual;
 }
 
+type Field = "mission" | "frog" | "pillar";
+
 const ENERGY_OPTIONS: { level: EnergyLevel; label: string; color: string; bg: string }[] = [
-  { level: "low", label: "Baja", color: "text-zinc-400", bg: "bg-zinc-800" },
+  { level: "low", label: "Baja", color: "text-zinc-300", bg: "bg-zinc-800" },
   { level: "medium", label: "Media", color: "text-amber-400", bg: "bg-amber-500/10" },
   { level: "high", label: "Alta", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  { level: "peak", label: "Pico", color: "text-violet-400", bg: "bg-violet-500/10" },
+  { level: "peak", label: "Máxima", color: "text-violet-400", bg: "bg-violet-500/10" },
+];
+
+const FIELDS: {
+  key: Field;
+  label: string;
+  placeholder: string;
+  icon: typeof Target;
+  accent: { label: string; hover: string; ring: string; check: string };
+}[] = [
+  {
+    key: "mission",
+    label: "Objetivo del día",
+    placeholder: "¿Qué querés lograr hoy?",
+    icon: Target,
+    accent: { label: "text-violet-400", hover: "hover:border-violet-500/30", ring: "border-violet-500", check: "accent-violet-500" },
+  },
+  {
+    key: "frog",
+    label: "Tarea más importante",
+    placeholder: "La que más impacto tiene, aunque sea la que más cuesta.",
+    icon: Zap,
+    accent: { label: "text-emerald-400", hover: "hover:border-emerald-500/30", ring: "border-emerald-500", check: "accent-emerald-500" },
+  },
+  {
+    key: "pillar",
+    label: "Cómo vas a trabajar",
+    placeholder: "Por ejemplo: sin celular hasta el mediodía.",
+    icon: ShieldCheck,
+    accent: { label: "text-amber-400", hover: "hover:border-amber-500/30", ring: "border-amber-500", check: "accent-amber-500" },
+  },
 ];
 
 export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
   const toast = useToast();
   // Se reemplaza cuando el Server Component revalida y envía datos frescos.
   const [data, setData] = useServerState<MorningRitual>(initialData);
+  const [done, setDone] = React.useState<Record<Field, boolean>>({ mission: false, frog: false, pillar: false });
+  const [editingField, setEditingField] = React.useState<Field | null>(null);
+  const [tempValue, setTempValue] = React.useState("");
 
-  // Estados de completitud de cada sección (checkbox nativo tintado)
-  const [missionDone, setMissionDone] = React.useState(false);
-  const [frogDone, setFrogDone] = React.useState(false);
-  const [pillarDone, setPillarDone] = React.useState(false);
-
-  // Estados de edición inline
-  const [editingField, setEditingField] = React.useState<"mission" | "frog" | "pillar" | null>(null);
-  const [tempValue, setTempValue] = React.useState<string>("");
-
-  // Iniciar edición inline con un clic
-  const handleStartEdit = (field: "mission" | "frog" | "pillar") => {
+  const handleStartEdit = (field: Field) => {
     setEditingField(field);
     setTempValue(data[field] || "");
   };
 
-  // Guardar en Supabase en background con Server Action y rollback
-  const handleSaveField = async (field: "mission" | "frog" | "pillar") => {
-    if (!tempValue.trim()) {
-      setEditingField(null);
-      return;
-    }
+  const handleSaveField = async (field: Field) => {
     const val = tempValue.trim();
     setEditingField(null);
+    if (!val || val === data[field]) return;
 
     const previousValue = data[field];
     setData((prev) => ({ ...prev, [field]: val }));
 
     const res = await updateMorningRitualAction({ [field]: val });
     if (!res.ok) {
-      // Se revierte solo este campo, no una foto vieja de todo el ritual.
+      // Se revierte solo este campo.
       setData((prev) => ({ ...prev, [field]: previousValue }));
       toast.error(res.error);
     }
   };
 
-  // Cambiar nivel de energía con Server Action y rollback
   const handleEnergyChange = async (level: EnergyLevel) => {
     const previousLevel = data.energyLevel;
     if (previousLevel === level) return;
@@ -73,40 +94,34 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
 
   return (
     <div className="w-full rounded-[22px] border border-white/[0.08] bg-zinc-900/60 backdrop-blur-xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.12)] space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/[0.06] pb-3">
+      <div className="space-y-3 border-b border-white/[0.06] pb-3">
         <div>
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
-              <Briefcase className="h-4 w-4" />
+              <ListChecks className="h-4 w-4" />
             </div>
-            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              Priorities
-              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 rounded-full">
-                Hoy
-              </span>
-            </h2>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Prioridades de hoy</h2>
           </div>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Enfoque de trabajo y estudio directo. Clic en cualquier tarjeta para editar.
-          </p>
+          <p className="text-xs text-zinc-400 mt-1">Tocá una tarjeta para escribir o cambiar el texto.</p>
         </div>
 
-        {/* Selector de Nivel de Energía / Disponibilidad */}
-        <div className="flex items-center gap-1 bg-zinc-950/70 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
-          <span className="text-[10px] text-zinc-500 uppercase font-semibold px-2 flex items-center gap-1">
-            <BatteryCharging className="h-3 w-3 text-violet-400" /> Energía:
+        {/* Nivel de energía: en su propia fila para que no se corte en pantallas medianas */}
+        <div className="flex flex-wrap items-center gap-1 bg-zinc-950/70 p-1 rounded-xl border border-white/10 w-fit max-w-full">
+          <span className="text-xs text-zinc-400 font-medium px-2 flex items-center gap-1">
+            <BatteryCharging className="h-3.5 w-3.5 text-violet-400" /> Energía
           </span>
           {ENERGY_OPTIONS.map((opt) => (
             <button
               key={opt.level}
               type="button"
               onClick={() => handleEnergyChange(opt.level)}
-              className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+              aria-pressed={data.energyLevel === opt.level}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
                 data.energyLevel === opt.level
                   ? `${opt.bg} ${opt.color} ring-1 ring-white/10`
-                  : "text-zinc-500 hover:text-zinc-300"
-              }`}
+                  : "text-zinc-400 hover:text-zinc-200"
+              )}
             >
               {opt.label}
             </button>
@@ -114,163 +129,77 @@ export function InlineMorningRitual({ initialData }: InlineMorningRitualProps) {
         </div>
       </div>
 
-      {/* Las 3 Prioridades: Objetivo Principal, Prioridad Crítica y Foco */}
       <div className="grid grid-cols-1 gap-3">
-        {/* 1. Objetivo Principal de la Sesión */}
-        <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-3.5 flex flex-col justify-between hover:border-violet-500/30 transition-colors group/card">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-violet-400 flex items-center gap-1.5">
-              <Target className="h-3.5 w-3.5" /> Objetivo Principal
-            </span>
-            <input
-              type="checkbox"
-              checked={missionDone}
-              onChange={(e) => setMissionDone(e.target.checked)}
-              title="Marcar como cumplido"
-              className="w-4 h-4 rounded cursor-pointer accent-violet-500 bg-zinc-800 border-zinc-700"
-            />
-          </div>
-
-          <div className="flex-1 my-1">
-            {editingField === "mission" ? (
-              <textarea
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => handleSaveField("mission")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSaveField("mission");
-                  }
-                }}
-                rows={2}
-                autoFocus
-                className="w-full bg-zinc-900 border border-violet-500 rounded-xl p-2 text-xs text-white focus:outline-none resize-none"
-              />
-            ) : (
-              <div
-                onClick={() => handleStartEdit("mission")}
-                className="cursor-pointer group/text py-0.5"
-                title="Haz clic para editar el objetivo principal"
-              >
-                <p
-                  className={`text-xs font-medium leading-snug transition-all ${
-                    missionDone ? "line-through text-zinc-500" : "text-zinc-200"
-                  }`}
-                >
-                  {data.mission || "Finalizar entregable principal y avanzar módulo de estudio clave."}
-                </p>
-                <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                  <Edit2 className="h-2.5 w-2.5" /> Editar
+        {FIELDS.map(({ key, label, placeholder, icon: Icon, accent }) => {
+          const value = data[key];
+          return (
+            <div
+              key={key}
+              className={cn(
+                "rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-3.5 transition-colors group/card",
+                accent.hover
+              )}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className={cn("text-xs font-bold uppercase tracking-wider flex items-center gap-1.5", accent.label)}>
+                  <Icon className="h-3.5 w-3.5" /> {label}
                 </span>
+                {value && (
+                  <input
+                    type="checkbox"
+                    checked={done[key]}
+                    onChange={(e) => setDone((prev) => ({ ...prev, [key]: e.target.checked }))}
+                    aria-label={`Marcar "${label}" como cumplido`}
+                    className={cn("w-4 h-4 rounded cursor-pointer bg-zinc-800 border-zinc-700", accent.check)}
+                  />
+                )}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* 2. Prioridad Crítica #1 */}
-        <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-3.5 flex flex-col justify-between hover:border-emerald-500/30 transition-colors group/card">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5" /> Prioridad Crítica #1
-            </span>
-            <input
-              type="checkbox"
-              checked={frogDone}
-              onChange={(e) => setFrogDone(e.target.checked)}
-              title="Marcar prioridad crítica resuelta"
-              className="w-4 h-4 rounded cursor-pointer accent-emerald-500 bg-zinc-800 border-zinc-700"
-            />
-          </div>
-
-          <div className="flex-1 my-1">
-            {editingField === "frog" ? (
-              <textarea
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => handleSaveField("frog")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSaveField("frog");
-                  }
-                }}
-                rows={2}
-                autoFocus
-                className="w-full bg-zinc-900 border border-emerald-500 rounded-xl p-2 text-xs text-white focus:outline-none resize-none"
-              />
-            ) : (
-              <div
-                onClick={() => handleStartEdit("frog")}
-                className="cursor-pointer group/text py-0.5"
-                title="Haz clic para editar la prioridad crítica"
-              >
-                <p
-                  className={`text-xs font-medium leading-snug transition-all ${
-                    frogDone ? "line-through text-zinc-500" : "text-zinc-200"
-                  }`}
+              {editingField === key ? (
+                <textarea
+                  value={tempValue}
+                  onChange={(e) => setTempValue(e.target.value)}
+                  onBlur={() => handleSaveField(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSaveField(key);
+                    }
+                    if (e.key === "Escape") setEditingField(null);
+                  }}
+                  rows={2}
+                  maxLength={300}
+                  autoFocus
+                  placeholder={placeholder}
+                  aria-label={label}
+                  className={cn(
+                    "w-full bg-zinc-900 border rounded-xl p-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none resize-none",
+                    accent.ring
+                  )}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleStartEdit(key)}
+                  className="w-full text-left cursor-pointer py-0.5"
                 >
-                  {data.frog || "Completar la tarea más compleja y bloqueante antes del mediodía."}
-                </p>
-                <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                  <Edit2 className="h-2.5 w-2.5" /> Editar
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 3. Foco & Criterio de Ejecución */}
-        <div className="rounded-2xl bg-zinc-950/60 border border-white/[0.06] p-3.5 flex flex-col justify-between hover:border-amber-500/30 transition-colors group/card">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5" /> Foco & Estrategia
-            </span>
-            <input
-              type="checkbox"
-              checked={pillarDone}
-              onChange={(e) => setPillarDone(e.target.checked)}
-              title="Marcar criterio sostenido"
-              className="w-4 h-4 rounded cursor-pointer accent-amber-500 bg-zinc-800 border-zinc-700"
-            />
-          </div>
-
-          <div className="flex-1 my-1">
-            {editingField === "pillar" ? (
-              <textarea
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                onBlur={() => handleSaveField("pillar")}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSaveField("pillar");
-                  }
-                }}
-                rows={2}
-                autoFocus
-                className="w-full bg-zinc-900 border border-amber-500 rounded-xl p-2 text-xs text-white focus:outline-none resize-none"
-              />
-            ) : (
-              <div
-                onClick={() => handleStartEdit("pillar")}
-                className="cursor-pointer group/text py-0.5"
-                title="Haz clic para editar el foco"
-              >
-                <p
-                  className={`text-xs font-medium leading-snug transition-all ${
-                    pillarDone ? "line-through text-zinc-500" : "text-zinc-200"
-                  }`}
-                >
-                  {data.pillar || "Cero multitarea, estudio activo y desconexión de distracciones."}
-                </p>
-                <span className="text-[10px] text-zinc-500 flex items-center gap-1 mt-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                  <Edit2 className="h-2.5 w-2.5" /> Editar
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+                  <p
+                    className={cn(
+                      "text-sm leading-snug transition-all",
+                      !value && "text-zinc-500 italic",
+                      value && (done[key] ? "line-through text-zinc-500" : "text-zinc-200 font-medium")
+                    )}
+                  >
+                    {value || placeholder}
+                  </p>
+                  <span className="text-xs text-zinc-500 flex items-center gap-1 mt-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                    <Edit2 className="h-3 w-3" /> {value ? "Editar" : "Escribir"}
+                  </span>
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

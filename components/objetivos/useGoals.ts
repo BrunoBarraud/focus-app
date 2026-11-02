@@ -1,8 +1,15 @@
 "use client";
 
-import { addGoalAction, deleteGoalAction, setMilestoneAction } from "@/app/actions/goals";
+import {
+  addGoalAction,
+  addMilestoneAction,
+  deleteGoalAction,
+  deleteMilestoneAction,
+  setMilestoneAction,
+} from "@/app/actions/goals";
 import { useToast } from "@/components/ui/toast";
 import { parseIsoDate } from "@/lib/dates";
+import { progressOf } from "@/lib/mappers";
 import type { Goal, GoalCategory, GoalTimeframe } from "@/lib/types";
 import { useServerState } from "@/lib/client-hooks";
 
@@ -10,14 +17,17 @@ const TEMP_PREFIX = "temp-";
 export const isTempId = (id: string) => id.startsWith(TEMP_PREFIX);
 
 function withProgress(goal: Goal): Goal {
-  const total = goal.milestones.length;
-  const done = goal.milestones.filter((m) => m.completed).length;
-  return { ...goal, progress: total ? Math.round((done / total) * 100) : goal.progress };
+  return { ...goal, progress: progressOf(goal.milestones) };
 }
 
 export function formatTargetDate(targetDate: string | null): string {
   if (!targetDate) return "Sin fecha límite";
-  return parseIsoDate(targetDate).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  return parseIsoDate(targetDate).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Trimestre en curso, para proponerlo por defecto al crear una meta. */
+export function currentQuarter(): GoalTimeframe {
+  return `Q${Math.floor(new Date().getMonth() / 3) + 1}` as GoalTimeframe;
 }
 
 /** Metas con hitos reales, compartidas por el dashboard y /objetivos. */
@@ -52,7 +62,7 @@ export function useGoals(initialGoals: Goal[]) {
   const toggleMilestone = async (goalId: string, milestoneId: string) => {
     const goal = goals.find((g) => g.id === goalId);
     const milestone = goal?.milestones.find((m) => m.id === milestoneId);
-    if (!goal || !milestone || isTempId(goalId)) return;
+    if (!goal || !milestone || isTempId(goalId) || isTempId(milestoneId)) return;
     const next = !milestone.completed;
 
     const flip = (completed: boolean) =>
@@ -67,6 +77,46 @@ export function useGoals(initialGoals: Goal[]) {
     const res = await setMilestoneAction(milestoneId, next);
     if (!res.ok) {
       flip(!next);
+      toast.error(res.error);
+    }
+  };
+
+  const addMilestone = async (goalId: string, title: string) => {
+    const clean = title.trim();
+    if (!clean || isTempId(goalId)) return false;
+    const tempId = `${TEMP_PREFIX}${crypto.randomUUID()}`;
+    updateGoal(goalId, (g) =>
+      withProgress({ ...g, milestones: [...g.milestones, { id: tempId, title: clean, completed: false }] })
+    );
+
+    const res = await addMilestoneAction(goalId, clean);
+    if (res.ok) {
+      updateGoal(goalId, (g) => ({
+        ...g,
+        progress: res.data.progress,
+        milestones: g.milestones.map((m) => (m.id === tempId ? res.data.milestone : m)),
+      }));
+      return true;
+    }
+    updateGoal(goalId, (g) => withProgress({ ...g, milestones: g.milestones.filter((m) => m.id !== tempId) }));
+    toast.error(res.error);
+    return false;
+  };
+
+  const deleteMilestone = async (goalId: string, milestoneId: string) => {
+    const goal = goals.find((g) => g.id === goalId);
+    const index = goal?.milestones.findIndex((m) => m.id === milestoneId) ?? -1;
+    if (!goal || index === -1 || isTempId(milestoneId)) return;
+    const removed = goal.milestones[index];
+
+    updateGoal(goalId, (g) => withProgress({ ...g, milestones: g.milestones.filter((m) => m.id !== milestoneId) }));
+    const res = await deleteMilestoneAction(milestoneId);
+    if (!res.ok) {
+      updateGoal(goalId, (g) => {
+        const milestones = [...g.milestones];
+        milestones.splice(Math.min(index, milestones.length), 0, removed);
+        return withProgress({ ...g, milestones });
+      });
       toast.error(res.error);
     }
   };
@@ -87,5 +137,5 @@ export function useGoals(initialGoals: Goal[]) {
     }
   };
 
-  return { goals, addGoal, toggleMilestone, deleteGoal };
+  return { goals, addGoal, toggleMilestone, addMilestone, deleteMilestone, deleteGoal };
 }

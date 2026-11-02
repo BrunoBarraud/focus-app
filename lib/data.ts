@@ -100,15 +100,16 @@ export async function getGoals(): Promise<Goal[]> {
   return rows.map(mapGoal);
 }
 
+// Áreas iniciales de la rueda. Arrancan SIN puntaje: lo pone el usuario.
 export const DEFAULT_WHEEL_AREAS: WheelArea[] = [
-  { subject: "Salud & Energía", score: 8, fullMark: 10, description: "Nutrición, fuerza, descanso y resistencia cardiovascular" },
-  { subject: "Familia & Pareja", score: 8, fullMark: 10, description: "Vínculos de confianza, tiempo presente y calidad compartida" },
-  { subject: "Carrera & Negocio", score: 7, fullMark: 10, description: "Impacto, liderazgo de proyectos y retos profesionales" },
-  { subject: "Finanzas", score: 7, fullMark: 10, description: "Patrimonio neto, ahorro e inversiones diversificadas" },
-  { subject: "Desarrollo Personal", score: 8, fullMark: 10, description: "Lectura, autocontrol, nuevas habilidades técnicas" },
-  { subject: "Espiritualidad", score: 7, fullMark: 10, description: "Meditación, ecuanimidad y gratitud diaria" },
-  { subject: "Ocio & Aventuras", score: 6, fullMark: 10, description: "Viajes, aficiones, naturaleza y tiempo no productivo" },
-  { subject: "Entorno Físico", score: 8, fullMark: 10, description: "Espacio de trabajo minimalista y hogar ordenado" },
+  { subject: "Salud & Energía", score: null, fullMark: 10, description: "Alimentación, actividad física y descanso" },
+  { subject: "Familia & Pareja", score: null, fullMark: 10, description: "Vínculos cercanos y tiempo compartido" },
+  { subject: "Carrera & Negocio", score: null, fullMark: 10, description: "Trabajo, estudio y proyectos profesionales" },
+  { subject: "Finanzas", score: null, fullMark: 10, description: "Ingresos, ahorro y gastos" },
+  { subject: "Desarrollo Personal", score: null, fullMark: 10, description: "Aprendizaje y nuevas habilidades" },
+  { subject: "Espiritualidad", score: null, fullMark: 10, description: "Bienestar interior y lo que le da sentido a tu día" },
+  { subject: "Ocio & Aventuras", score: null, fullMark: 10, description: "Hobbies, viajes y tiempo libre" },
+  { subject: "Entorno Físico", score: null, fullMark: 10, description: "Tu casa y tu espacio de trabajo" },
 ];
 
 export async function getWheelOfLife(): Promise<WheelArea[]> {
@@ -126,7 +127,7 @@ export async function getWheelOfLife(): Promise<WheelArea[]> {
   if (rows.length > 0) {
     return rows.map((r) => ({
       subject: r.title,
-      score: Number(r.score ?? 7),
+      score: r.score === null ? null : Number(r.score),
       fullMark: 10,
       description: r.description ?? "",
     }));
@@ -141,7 +142,7 @@ export async function getWheelOfLife(): Promise<WheelArea[]> {
       type: "rueda",
       title: a.subject,
       description: a.description,
-      score: a.score,
+      score: null,
     }))
   );
   if (error && error.code !== "23505") {
@@ -180,15 +181,11 @@ export async function getProfile() {
   const { supabase, user } = await requireSession();
   const { data: row, error } = await supabase
     .from("user_settings")
-    .select("birth_date, target_age, timezone")
+    .select("timezone")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw new Error(`Error al cargar perfil: ${error.message}`);
-  return {
-    birthDate: row?.birth_date ?? "",
-    targetAge: row?.target_age ?? 80,
-    timezone: row?.timezone ?? null,
-  };
+  return { timezone: row?.timezone ?? null };
 }
 
 /** Admin: todos los tickets. Usuario: solo los propios (RLS hace cumplir lo mismo). */

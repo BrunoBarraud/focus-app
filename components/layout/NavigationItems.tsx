@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS = [
   {
-    label: "Dashboard",
+    label: "Inicio",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
@@ -22,17 +22,17 @@ export const NAV_ITEMS = [
     icon: Calendar,
   },
   {
-    label: "Objetivos & Metas",
+    label: "Objetivos",
     href: "/objetivos",
     icon: Target,
   },
   {
-    label: "Enfoque (Pomodoro)",
+    label: "Enfoque",
     href: "/enfoque",
     icon: Timer,
   },
   {
-    label: "Soporte & Feedback",
+    label: "Soporte",
     href: "/soporte",
     icon: LifeBuoy,
   },

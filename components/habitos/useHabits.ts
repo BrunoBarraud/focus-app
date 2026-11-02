@@ -112,6 +112,9 @@ export function useHabits(initialHabits: Habit[]) {
 
   return {
     today,
+    // false hasta que el cliente conoce su fecha local: evita mostrar "no tenés
+    // hábitos" por un instante a quien sí los tiene.
+    ready: today !== null,
     currentDay: today ? Number(today.slice(8, 10)) : null,
     daysInMonth: today ? monthLength(today) : 31,
     habits: views,

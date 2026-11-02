@@ -4,9 +4,10 @@ import { safeRedirectPath } from "@/lib/redirect";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string | string[] }>;
+  searchParams: Promise<{ next?: string | string[]; modo?: string | string[] }>;
 }) {
-  const { next } = await searchParams;
+  const { next, modo } = await searchParams;
   const target = typeof next === "string" ? safeRedirectPath(next) : undefined;
-  return <LoginForm next={target} />;
+  // /login?modo=registro abre directamente la pestaña de crear cuenta.
+  return <LoginForm next={target} mode={modo === "registro" ? "signup" : "login"} />;
 }

@@ -88,13 +88,13 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-            <Sparkles className="h-3.5 w-3.5" /> Bucket List de Vida
+            <Sparkles className="h-3.5 w-3.5" /> A largo plazo
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-            Lista de Sueños por Cumplir
+            Sueños
           </h2>
           <p className="text-xs sm:text-sm text-zinc-400">
-            Aspiraciones mayores para no perder de vista el propósito de tu esfuerzo.
+            Cosas que querés hacer algún día, sin fecha exacta.
           </p>
         </div>
 
@@ -110,7 +110,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
             size="sm"
             className="gap-1.5"
           >
-            <Plus className="h-4 w-4" /> Añadir Sueño
+            <Plus className="h-4 w-4" /> Agregar sueño
           </Button>
         </div>
       </div>
@@ -121,7 +121,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
           { id: "all", label: "Todos los sueños" },
           { id: "in_progress", label: "En progreso" },
           { id: "pending", label: "Por iniciar" },
-          { id: "completed", label: "Cumplidos ✨" },
+          { id: "completed", label: "Cumplidos" },
         ].map((item) => (
           <button
             key={item.id}
@@ -144,10 +144,10 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
           <div className="col-span-full py-12 text-center border border-dashed border-zinc-800 rounded-2xl p-6">
             <Sparkles className="h-8 w-8 text-amber-500/60 mx-auto mb-2" />
             <p className="text-sm font-semibold text-zinc-200">
-              No tienes sueños registrados en esta sección.
+              No hay sueños en esta sección.
             </p>
             <p className="text-xs text-zinc-400 mt-1">
-              Tu lista de sueños te recuerda por qué vale la pena esforzarse cada día.
+              Anotá algo que quieras hacer algún día.
             </p>
             <Button
               onClick={() => setIsAddOpen(true)}
@@ -155,7 +155,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
               size="sm"
               className="mt-3"
             >
-              + Registrar mi primer sueño
+              + Agregar un sueño
             </Button>
           </div>
         ) : (
@@ -177,7 +177,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <Badge variant="outline" className="text-[10px] py-0 px-2">
+                  <Badge variant="outline" className="text-[11px] py-0 px-2">
                     {dream.category}
                   </Badge>
 
@@ -234,7 +234,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
                       <button
                         type="button"
                         onClick={() => handleStatusChange(dream.id, "completed")}
-                        className="px-2 py-1 text-[10px] rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors font-medium cursor-pointer"
+                        className="px-2 py-1 text-[11px] rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors font-medium cursor-pointer"
                       >
                         ✓ Cumplir
                       </button>
@@ -244,7 +244,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
                       <button
                         type="button"
                         onClick={() => handleStatusChange(dream.id, "in_progress")}
-                        className="px-2 py-1 text-[10px] rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors cursor-pointer"
+                        className="px-2 py-1 text-[11px] rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors cursor-pointer"
                       >
                         Reabrir
                       </button>
@@ -261,8 +261,8 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
       <Dialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        title="Añadir a la Lista de Sueños"
-        description="Escribe un objetivo trascendente que quieras experimentar en esta vida."
+        title="Nuevo sueño"
+        description="Algo que quieras hacer, aunque todavía no tenga fecha."
       >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           <div>
@@ -272,7 +272,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
             <input
               type="text"
               required
-              placeholder="Ej: Cruzar el océano en velero, construir mi casa en el bosque..."
+              placeholder="Ej: Viajar al sur en moto"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
@@ -281,11 +281,11 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
 
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Descripción o Visión
+              Descripción (opcional)
             </label>
             <textarea
               rows={2}
-              placeholder="Cómo te sentirás, qué se requiere para lograrlo..."
+              placeholder="Qué necesitás para lograrlo"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none resize-none"
@@ -312,7 +312,7 @@ export function DreamsList({ initialDreams }: DreamsListProps) {
 
             <div>
               <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-                Año Estimado
+                Año estimado
               </label>
               <input
                 type="number"

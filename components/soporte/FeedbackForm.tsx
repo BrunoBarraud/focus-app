@@ -32,23 +32,23 @@ const CATEGORIES: {
   {
     type: "suggestion",
     label: "Sugerencia",
-    desc: "Proponer una nueva funcionalidad",
+    desc: "Una función nueva",
     icon: Lightbulb,
     color: "text-amber-400 bg-amber-500/10",
     border: "border-amber-500/30",
   },
   {
     type: "improvement",
-    label: "Mejora UI/UX",
-    desc: "Optimizar flujo o diseño actual",
+    label: "Mejora",
+    desc: "Algo que ya existe y podría ser mejor",
     icon: Sparkles,
     color: "text-violet-400 bg-violet-500/10",
     border: "border-violet-500/30",
   },
   {
     type: "bug",
-    label: "Reportar Bug",
-    desc: "Informar de un error o falla",
+    label: "Error",
+    desc: "Algo no funciona como debería",
     icon: Bug,
     color: "text-rose-400 bg-rose-500/10",
     border: "border-rose-500/30",
@@ -56,7 +56,7 @@ const CATEGORIES: {
   {
     type: "question",
     label: "Consulta",
-    desc: "Duda o soporte de uso",
+    desc: "Una duda sobre cómo usar la app",
     icon: HelpCircle,
     color: "text-blue-400 bg-blue-500/10",
     border: "border-blue-500/30",
@@ -115,10 +115,10 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
       <div className="mb-6">
         <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-violet-400" />
-          Envíanos tu Feedback o Sugerencia
+          Mandanos tu mensaje
         </h2>
         <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-          Tu opinión moldea directamente las próximas actualizaciones de Focus. Cuéntanos qué podemos mejorar o qué función te encantaría ver.
+          Contanos qué mejorarías, qué te gustaría que tenga Focus o qué problema encontraste.
         </p>
       </div>
 
@@ -126,9 +126,9 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
         <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
           <div>
-            <p className="font-semibold">¡Muchas gracias por tu feedback!</p>
+            <p className="font-semibold">¡Gracias por escribirnos!</p>
             <p className="text-emerald-400/80 text-xs">
-              Hemos registrado tu mensaje con éxito. El equipo lo revisará a la brevedad.
+              Recibimos tu mensaje. Te vamos a responder en “Mis mensajes”.
             </p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
         {/* 1. Selector de Categoría */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5">
-            1. Tipo de Mensaje
+            1. Tipo de mensaje
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {CATEGORIES.map((cat) => {
@@ -169,7 +169,7 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
                   </div>
                   <div>
                     <span className="text-xs font-bold block text-zinc-200">{cat.label}</span>
-                    <span className="text-[10px] text-zinc-500 line-clamp-1 mt-0.5">{cat.desc}</span>
+                    <span className="text-[11px] text-zinc-500 line-clamp-1 mt-0.5">{cat.desc}</span>
                   </div>
                 </button>
               );
@@ -180,12 +180,12 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
         {/* 2. Título */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
-            2. Título Resumen
+            2. Título
           </label>
           <input
             type="text"
             required
-            placeholder="Ej: Agregar integración con Google Calendar o atajos de teclado..."
+            placeholder="Ej: Poder editar una tarea"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none transition-colors"
@@ -195,12 +195,12 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
         {/* 3. Descripción detallada */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
-            3. Detalles / Explicación
+            3. Detalle
           </label>
           <textarea
             required
             rows={4}
-            placeholder="Explícanos cómo te imaginas esta función, qué te gustaría cambiar o qué problema encontraste..."
+            placeholder="Contanos con el mayor detalle posible. Si es un error, qué estabas haciendo cuando pasó."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full rounded-xl border border-zinc-800 bg-zinc-950/60 p-3.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none transition-colors resize-none leading-relaxed"
@@ -212,7 +212,7 @@ export function FeedbackForm({ onSuccess }: FeedbackFormProps) {
           {/* Calificación */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
-              Calificación General de la App
+              ¿Qué puntaje le das a la app?
             </label>
             <div className="flex items-center gap-1.5">
               {[1, 2, 3, 4, 5].map((star) => {

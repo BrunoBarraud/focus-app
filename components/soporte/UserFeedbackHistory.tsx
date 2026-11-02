@@ -34,14 +34,14 @@ const STATUS_BADGES: Record<
     icon: Clock,
   },
   in_review: {
-    label: "En Revisión",
+    label: "En revisión",
     bg: "bg-blue-500/10",
     text: "text-blue-400",
     border: "border-blue-500/20",
     icon: Sparkles,
   },
   resolved: {
-    label: "Implementado / Resuelto",
+    label: "Resuelto",
     bg: "bg-emerald-500/10",
     text: "text-emerald-400",
     border: "border-emerald-500/20",
@@ -59,7 +59,7 @@ const STATUS_BADGES: Record<
 const TYPE_ICONS: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   suggestion: { label: "Sugerencia", icon: Lightbulb, color: "text-amber-400" },
   improvement: { label: "Mejora", icon: Sparkles, color: "text-violet-400" },
-  bug: { label: "Bug / Error", icon: Bug, color: "text-rose-400" },
+  bug: { label: "Error", icon: Bug, color: "text-rose-400" },
   question: { label: "Consulta", icon: HelpCircle, color: "text-blue-400" },
   other: { label: "Otro", icon: MessageSquare, color: "text-zinc-400" },
 };
@@ -71,9 +71,9 @@ export function UserFeedbackHistory({ feedbacks }: UserFeedbackHistoryProps) {
         <div className="mx-auto h-12 w-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 mb-3">
           <Layers className="h-6 w-6" />
         </div>
-        <h3 className="text-base font-bold text-zinc-200">Aún no has enviado solicitudes</h3>
+        <h3 className="text-base font-bold text-zinc-200">Todavía no mandaste mensajes</h3>
         <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1">
-          Usá la pestaña “Enviar Feedback” para sugerir nuevas ideas o reportar cualquier inconveniente.
+          Usá la pestaña “Nuevo mensaje” para sugerir ideas o avisarnos de un problema.
         </p>
       </div>
     );
@@ -105,7 +105,7 @@ export function UserFeedbackHistory({ feedbacks }: UserFeedbackHistoryProps) {
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
+                    "inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
                     statusConfig.bg,
                     statusConfig.text,
                     statusConfig.border
@@ -121,8 +121,8 @@ export function UserFeedbackHistory({ feedbacks }: UserFeedbackHistoryProps) {
                 </span>
 
                 {item.priority === "high" && (
-                  <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                    Prioridad Alta
+                  <span className="text-[11px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                    Prioridad alta
                   </span>
                 )}
               </div>
@@ -150,12 +150,12 @@ export function UserFeedbackHistory({ feedbacks }: UserFeedbackHistoryProps) {
               </p>
             </div>
 
-            {/* Respuesta del Administrador (si la hay) */}
+            {/* Respuesta (si la hay) */}
             {item.adminResponse && (
               <div className="mt-3 p-3.5 rounded-xl bg-violet-950/30 border border-violet-500/30 text-xs sm:text-sm space-y-1 animate-in fade-in">
                 <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px] uppercase tracking-wider">
                   <Crown className="h-3.5 w-3.5" />
-                  Respuesta del Administrador
+                  Respuesta
                 </div>
                 <p className="text-zinc-200 leading-relaxed whitespace-pre-line">
                   {item.adminResponse}

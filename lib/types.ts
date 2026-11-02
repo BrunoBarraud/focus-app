@@ -95,7 +95,7 @@ export interface Goal {
 
 export interface WheelArea {
   subject: string;
-  score: number; // 0 - 10
+  score: number | null; // 1 - 10, null = todavía sin evaluar
   fullMark: number; // 10
   description: string;
 }

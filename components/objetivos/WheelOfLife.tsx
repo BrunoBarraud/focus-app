@@ -51,7 +51,8 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
         if (res.ok) {
           lastSaved.current.set(subject, newScore);
         } else {
-          const previous = lastSaved.current.get(subject) ?? newScore;
+          const saved = lastSaved.current.get(subject);
+          const previous = saved === undefined ? newScore : saved;
           setAreas((prev) => prev.map((a) => (a.subject === subject ? { ...a, score: previous } : a)));
           toast.error(res.error);
         }
@@ -59,9 +60,11 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
     );
   };
 
-  const averageScore = (
-    areas.reduce((acc, curr) => acc + curr.score, 0) / (areas.length || 1)
-  ).toFixed(1);
+  const scored = areas.filter((a) => a.score !== null);
+  const averageScore = scored.length
+    ? (scored.reduce((acc, curr) => acc + (curr.score ?? 0), 0) / scored.length).toFixed(1)
+    : null;
+  const chartData = areas.map((a) => ({ ...a, value: a.score ?? 0 }));
 
   return (
     <Card className="border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl shadow-xl">
@@ -69,24 +72,22 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-              <Compass className="h-3.5 w-3.5" /> Balance Integral
+              <Compass className="h-3.5 w-3.5" /> Balance
             </div>
             <CardTitle className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              Rueda de la Vida
+              Rueda de la vida
             </CardTitle>
             <CardDescription>
-              Evaluación holística de tus 8 pilares vitales (Escala 1 al 10)
+              Puntuá del 1 al 10 cómo estás hoy en cada área.
             </CardDescription>
           </div>
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3.5 py-2 flex items-center gap-2 self-start sm:self-auto">
             <Activity className="h-4 w-4 text-violet-400" />
             <div>
-              <p className="text-[10px] text-zinc-400 uppercase font-semibold">
-                Equilibrio Global
-              </p>
+              <p className="text-[11px] text-zinc-400 uppercase font-semibold">Promedio</p>
               <p className="text-base font-bold text-white font-mono">
-                {averageScore} <span className="text-xs text-zinc-400 font-normal">/ 10</span>
+                {averageScore ?? "—"} <span className="text-xs text-zinc-400 font-normal">/ 10</span>
               </p>
             </div>
           </div>
@@ -98,7 +99,7 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
         <div className="lg:col-span-7 h-[340px] sm:h-[380px] w-full flex items-center justify-center">
           {isMounted ? (
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={areas}>
+              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={chartData}>
                 <PolarGrid stroke="#27272a" strokeDasharray="3 3" />
                 <PolarAngleAxis
                   dataKey="subject"
@@ -112,7 +113,8 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                 />
                 <Radar
                   name="Puntuación"
-                  dataKey="score"
+                  dataKey="value"
+                  isAnimationActive={false}
                   stroke="#8b5cf6"
                   fill="#8b5cf6"
                   fillOpacity={0.35}
@@ -125,9 +127,9 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                         <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-2.5 shadow-xl text-xs">
                           <p className="font-bold text-white">{data.subject}</p>
                           <p className="text-violet-400 font-semibold mt-0.5">
-                            Puntaje: {data.score} / 10
+                            {data.score === null ? "Sin evaluar" : `Puntaje: ${data.score} / 10`}
                           </p>
-                          <p className="text-zinc-400 text-[10px] mt-1 max-w-[180px]">
+                          <p className="text-zinc-400 text-xs mt-1 max-w-[180px]">
                             {data.description}
                           </p>
                         </div>
@@ -146,8 +148,11 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
         {/* Interactive Calibrator Controls */}
         <div className="lg:col-span-5 space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-            Calibrar Áreas
+            Tus áreas
           </p>
+          {scored.length === 0 && (
+            <p className="text-xs text-zinc-400 mb-2">Mové cada barra para evaluar el área.</p>
+          )}
           {areas.map((area) => (
             <div
               key={area.subject}
@@ -155,8 +160,8 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
             >
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-medium text-zinc-200">{area.subject}</span>
-                <span className="font-mono font-bold text-violet-400">
-                  {area.score}/10
+                <span className={area.score === null ? "text-zinc-500" : "font-mono font-bold text-violet-400"}>
+                  {area.score === null ? "Sin evaluar" : `${area.score}/10`}
                 </span>
               </div>
               <input
@@ -164,11 +169,12 @@ export function WheelOfLife({ initialAreas }: WheelOfLifeProps) {
                 min={1}
                 max={10}
                 step={0.5}
-                value={area.score}
+                value={area.score ?? 1}
+                aria-label={`Puntaje de ${area.subject}`}
                 onChange={(e) =>
                   handleScoreChange(area.subject, parseFloat(e.target.value))
                 }
-                className="w-full accent-violet-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                className={`w-full accent-violet-500 bg-zinc-800 h-1.5 rounded-lg cursor-pointer ${area.score === null ? "opacity-40" : ""}`}
               />
             </div>
           ))}

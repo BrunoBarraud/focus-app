@@ -157,7 +157,6 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
       startTime: modalScheduledTime || undefined,
       priority,
       estimatedMinutes: Number(estimatedMinutes) || 30,
-      tag: "Enfoque",
     });
     setSaving(false);
     if (created) setIsModalOpen(false);
@@ -189,7 +188,6 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
       startTime: inlineMonthTime || undefined,
       priority: inlineMonthPriority,
       estimatedMinutes: Number(inlineMonthMinutes) || 30,
-      tag: "Plan Mensual",
     });
     if (created) {
       setInlineMonthTitle("");
@@ -216,21 +214,21 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
           <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
             {viewMode === "week" ? (
               <>
-                <Calendar className="h-3.5 w-3.5" /> Tablero Horizontal L-D
+                <Calendar className="h-3.5 w-3.5" /> Lunes a domingo
               </>
             ) : (
               <>
-                <CalendarDays className="h-3.5 w-3.5" /> Vista Mensual Programable
+                <CalendarDays className="h-3.5 w-3.5" /> Mes completo
               </>
             )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Planificador {viewMode === "week" ? "Semanal" : "Mensual"}
+            Planificador {viewMode === "week" ? "semanal" : "mensual"}
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400">
             {viewMode === "week"
-              ? "Estructura tus 7 días para proteger tus bloques de deep work y descanso."
-              : "Visualiza el mes completo, programa tareas para cualquier día y gestiona tus compromisos."}
+              ? "Tus tareas de la semana, día por día."
+              : "Elegí un día del mes para ver sus tareas o agregar una nueva."}
           </p>
         </div>
 
@@ -306,7 +304,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                           {col.full}
                         </span>
                         {col.isToday && (
-                          <span className="text-[10px] uppercase font-bold text-violet-300 bg-violet-500/15 px-1.5 py-0.5 rounded border border-violet-500/30">
+                          <span className="text-[11px] uppercase font-bold text-violet-300 bg-violet-500/15 px-1.5 py-0.5 rounded border border-violet-500/30">
                             Hoy
                           </span>
                         )}
@@ -337,7 +335,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                         onClick={() => openAddModal(col.day, col.date)}
                         className="text-xs text-violet-400 hover:underline mt-1 font-medium cursor-pointer"
                       >
-                        + Añadir una tarea
+                        + Agregar una tarea
                       </button>
                     </div>
                   ) : (
@@ -388,7 +386,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                                 <Badge
                                   variant="secondary"
                                   className={cn(
-                                    "text-[10px] px-1.5 py-0 font-medium",
+                                    "text-[11px] px-1.5 py-0 font-medium",
                                     task.priority === "high"
                                       ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                                       : task.priority === "medium"
@@ -417,12 +415,14 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                                   </span>
                                 )}
                                 {task.recurring && (
-                                  <span className="text-[10px] text-violet-300" title="Se repite cada semana">↻</span>
+                                  <span className="text-[11px] text-violet-300" title="Se repite cada semana">↻</span>
                                 )}
 
-                                <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[80px]">
-                                  #{task.tag}
-                                </span>
+                                {task.tag && task.tag !== "General" && (
+                                  <span className="text-[11px] text-zinc-400 font-medium truncate max-w-[80px]">
+                                    #{task.tag}
+                                  </span>
+                                )}
 
                                 <button
                                   type="button"
@@ -449,7 +449,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                     className="w-full justify-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 border-zinc-800 hover:bg-zinc-900 cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span>Añadir tarea</span>
+                    <span>Agregar tarea</span>
                   </Button>
                 </div>
               </div>
@@ -489,7 +489,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                   <span className="text-zinc-500 font-normal">{calendarMonthData.year}</span>
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Haz clic en cualquier día para ver sus tareas o programar una nueva
+                  Tocá un día para ver sus tareas o agregar una nueva
                 </p>
               </div>
             </div>
@@ -572,7 +572,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                         {dayTasks.length > 0 && (
                           <span
                             className={cn(
-                              "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-medium",
+                              "text-[11px] px-1.5 py-0.2 rounded-full font-mono font-medium",
                               hasOverdue
                                 ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                                 : hasPending
@@ -592,7 +592,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                         <div
                           key={t.id}
                           className={cn(
-                            "text-[10px] truncate px-1.5 py-0.5 rounded leading-tight",
+                            "text-[11px] truncate px-1.5 py-0.5 rounded leading-tight",
                             t.completed
                               ? "line-through text-zinc-500 bg-zinc-950/40"
                               : "text-zinc-200 bg-zinc-800/80"
@@ -602,7 +602,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                         </div>
                       ))}
                       {dayTasks.length > 2 && (
-                        <span className="text-[9px] text-zinc-500 pl-1">
+                        <span className="text-[11px] text-zinc-500 pl-1">
                           +{dayTasks.length - 2} más
                         </span>
                       )}
@@ -622,7 +622,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                   Tareas para el {selectedMonthDateFormatted}
                 </h4>
                 {selectedMonthDateIso === todayIso && (
-                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px]">
+                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[11px]">
                     Hoy
                   </Badge>
                 )}
@@ -637,7 +637,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
               {selectedMonthTasks.length === 0 ? (
                 <div className="text-center py-6 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
                   <p className="text-xs text-zinc-400">No hay tareas programadas para esta fecha.</p>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">Usa el formulario abajo para añadir una reunión o tarea.</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Agregala con el formulario de abajo.</p>
                 </div>
               ) : (
                 selectedMonthTasks.map((task) => (
@@ -690,7 +690,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                       <Badge
                         variant="secondary"
                         className={cn(
-                          "text-[10px] px-1.5 py-0 font-medium uppercase",
+                          "text-[11px] px-1.5 py-0 font-medium uppercase",
                           task.priority === "high"
                             ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
                             : task.priority === "medium"
@@ -724,7 +724,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
             <form onSubmit={handleCreateMonthTask} className="pt-2 flex flex-wrap sm:flex-nowrap items-center gap-2">
               <input
                 type="text"
-                placeholder={`+ Programar tarea o reunión para el ${selectedMonthDateFormatted.split(",")[0] || "día"}...`}
+                placeholder={`Nueva tarea para el ${selectedMonthDateFormatted.split(",")[0] || "día"}`}
                 value={inlineMonthTitle}
                 onChange={(e) => setInlineMonthTitle(e.target.value)}
                 className="flex-1 min-w-[140px] bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500"
@@ -734,7 +734,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                 type="time"
                 value={inlineMonthTime}
                 onChange={(e) => setInlineMonthTime(e.target.value)}
-                title="Hora de la reunión o tarea (opcional)"
+                title="Hora (opcional)"
                 className="bg-zinc-900 border border-zinc-700/80 rounded-xl px-2.5 py-2.5 text-xs sm:text-sm text-violet-300 font-mono focus:outline-none focus:border-violet-500 cursor-pointer"
               />
 
@@ -764,7 +764,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
                 className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer shrink-0 shadow-md shadow-violet-600/30 flex items-center gap-1.5"
               >
                 <Plus className="h-4 w-4" />
-                <span>Programar</span>
+                <span>Agregar</span>
               </button>
             </form>
           </div>
@@ -775,18 +775,18 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
       <Dialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        title="Programar Nueva Tarea o Reunión"
-        description="Añade un bloque de enfoque o reunión con horario a tu planificador."
+        title="Nueva tarea"
+        description="Si le ponés hora, te avisamos antes de que empiece."
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Título de la Tarea / Reunión
+              Título
             </label>
             <input
               type="text"
               required
-              placeholder="Ej: Reunión de sincronización de equipo..."
+              placeholder="Ej: Estudiar para el parcial"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
@@ -795,11 +795,11 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
 
           <div>
             <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-              Detalles / Enlace de Reunión (Opcional)
+              Notas (opcional)
             </label>
             <textarea
               rows={2}
-              placeholder="Notas clave, enlace a Google Meet / Zoom..."
+              placeholder="Detalles o links que necesites tener a mano"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none resize-none"
@@ -853,7 +853,7 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
 
             <div>
               <label className="block text-xs font-semibold uppercase text-zinc-400 mb-1.5">
-                Minutos Est.
+                Duración (min)
               </label>
               <input
                 type="number"

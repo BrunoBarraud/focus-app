@@ -63,7 +63,7 @@ export function PushNotificationButton() {
         <BellOff className="h-4 w-4" />
       )}
       <span className="hidden sm:inline">
-        {state === "denied" ? "Notificaciones bloqueadas" : isSubscribed ? "Notificaciones Activas" : "Activar Alertas"}
+        {state === "denied" ? "Notificaciones bloqueadas" : isSubscribed ? "Recordatorios activados" : "Activar recordatorios"}
       </span>
     </button>
   );

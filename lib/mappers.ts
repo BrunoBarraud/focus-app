@@ -126,9 +126,10 @@ export function mapRitual(row: Pick<
   "daily_mission" | "daily_pillar" | "daily_frog" | "energy_level"
 > | null): MorningRitual {
   return {
-    mission: row?.daily_mission || "Definí la misión principal de hoy.",
-    pillar: row?.daily_pillar || "Claridad & Presencia",
-    frog: row?.daily_frog || "Elegí la tarea más importante del día.",
+    // Vacío = el usuario todavía no lo escribió; la UI muestra un placeholder.
+    mission: row?.daily_mission ?? "",
+    pillar: row?.daily_pillar ?? "",
+    frog: row?.daily_frog ?? "",
     energyLevel: oneOf<EnergyLevel>(row?.energy_level, ENERGY, "high"),
   };
 }

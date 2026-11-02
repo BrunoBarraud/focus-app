@@ -26,8 +26,8 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
               <span className="font-bold tracking-tight text-lg text-white group-hover:text-violet-400 transition-colors">
                 FOCUS
               </span>
-              <span className="text-[10px] text-zinc-400 tracking-wider uppercase font-medium">
-                Productividad Consciente
+              <span className="text-[11px] text-zinc-400 tracking-wider uppercase font-medium">
+                Hábitos · Planificación · Foco
               </span>
             </div>
           </Link>
@@ -37,7 +37,7 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
         {/* Main Nav Items */}
         <div className="flex-1 overflow-y-auto py-6">
           <div className="px-5 mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
               Navegación
             </p>
           </div>
@@ -63,7 +63,7 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
                         {viewer.firstName}
                       </p>
                       <span
-                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                        className={`text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
                           role === "admin"
                             ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                             : "bg-zinc-800 text-zinc-400"
@@ -72,7 +72,7 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
                         {role === "admin" ? "👑 Admin" : "Usuario"}
                       </span>
                     </div>
-                    <p className="text-[10px] text-zinc-400 truncate">
+                    <p className="text-[11px] text-zinc-400 truncate">
                       {viewer.email}
                     </p>
                   </div>
@@ -82,7 +82,7 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
                   type="button"
                   onClick={() => setProfileOpen(true)}
                   className="p-1 rounded-md text-zinc-400 hover:text-violet-300 hover:bg-zinc-800 transition-colors cursor-pointer"
-                  title="Configuración de Perfil"
+                  title="Tu perfil"
                 >
                   <Settings className="h-3.5 w-3.5" />
                 </button>
@@ -96,7 +96,7 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
               className="flex items-center justify-center gap-2 rounded-xl bg-zinc-900 border border-zinc-800 p-3 text-xs font-semibold text-zinc-200 hover:text-white hover:border-violet-500/50 transition-all group"
             >
               <LogIn className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform" />
-              <span>Iniciar Sesión / Registro</span>
+              <span>Iniciar sesión</span>
             </Link>
           )}
         </div>

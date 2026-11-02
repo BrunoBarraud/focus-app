@@ -1,7 +1,7 @@
 {
-  "name": "Focus App",
+  "name": "Focus",
   "short_name": "Focus",
-  "description": "El sistema operativo para tu mejor versión. Productividad consciente.",
+  "description": "Hábitos, planificación semanal y foco en un solo lugar.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#09090b",

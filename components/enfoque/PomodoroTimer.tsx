@@ -4,29 +4,30 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { playTimerEndSound } from "@/lib/sound";
 import { useCountdown } from "@/lib/use-countdown";
+import { useDailyFocus } from "@/lib/use-daily-focus";
+import { formatTime, cn } from "@/lib/utils";
+import { Play, Pause, RotateCcw, Timer, Volume2, VolumeX, Target } from "lucide-react";
 
 type PomodoroMode = "focus" | "short_break" | "long_break";
-import { formatTime, cn } from "@/lib/utils";
-import { Play, Pause, RotateCcw, Sparkles, Volume2, VolumeX, Target } from "lucide-react";
 
 const MODE_CONFIG: Record<
   PomodoroMode,
   { label: string; duration: number; color: string; ringColor: string }
 > = {
   focus: {
-    label: "Enfoque Profundo",
+    label: "Enfoque",
     duration: 25 * 60,
     color: "text-violet-400",
     ringColor: "#8b5cf6",
   },
   short_break: {
-    label: "Descanso Corto",
+    label: "Descanso corto",
     duration: 5 * 60,
     color: "text-teal-400",
     ringColor: "#14b8a6",
   },
   long_break: {
-    label: "Descanso Largo",
+    label: "Descanso largo",
     duration: 15 * 60,
     color: "text-amber-400",
     ringColor: "#f59e0b",
@@ -35,14 +36,14 @@ const MODE_CONFIG: Record<
 
 export function PomodoroTimer() {
   const [mode, setMode] = React.useState<PomodoroMode>("focus");
-  const [completedSessions, setCompletedSessions] = React.useState(0);
+  const { blocks, minutes, addBlock } = useDailyFocus();
   const [currentTask, setCurrentTask] = React.useState("");
   const [soundEnabled, setSoundEnabled] = React.useState(true);
 
   const { timeLeft, isRunning, toggle: toggleTimer, reset } = useCountdown(MODE_CONFIG.focus.duration, (controls) => {
     // Sesión terminada: alternar entre enfoque y descanso.
     const nextMode: PomodoroMode = mode === "focus" ? "short_break" : "focus";
-    if (mode === "focus") setCompletedSessions((prev) => prev + 1);
+    if (mode === "focus") addBlock(MODE_CONFIG.focus.duration / 60);
     setMode(nextMode);
     controls.reset(MODE_CONFIG[nextMode].duration);
     if (soundEnabled) playTimerEndSound(587.33, 1.2);
@@ -69,13 +70,13 @@ export function PomodoroTimer() {
       {/* Title & Ambience */}
       <div className="text-center space-y-1.5">
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20">
-          <Sparkles className="h-3.5 w-3.5" /> Estado de Flujo
+          <Timer className="h-3.5 w-3.5" /> Pomodoro
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Sesión de Enfoque
+          Sesión de enfoque
         </h1>
-        <p className="text-xs sm:text-sm text-zinc-400 max-w-md mx-auto">
-          Elimina toda distracción. Tu atención es tu recurso más valioso.
+        <p className="text-sm text-zinc-400 max-w-md mx-auto">
+          Trabajá 25 minutos en una sola tarea y después tomate un descanso.
         </p>
       </div>
 
@@ -121,7 +122,7 @@ export function PomodoroTimer() {
         </button>
       </div>
 
-      {/* Big Circular Display - Adaptado para 1366x768 */}
+      {/* Temporizador circular */}
       <div className="relative flex items-center justify-center">
         {/* Ambient glow behind timer */}
         <div
@@ -168,8 +169,10 @@ export function PomodoroTimer() {
 
           {/* Sound toggle badge */}
           <button
+            type="button"
+            aria-pressed={soundEnabled}
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className="mt-3 flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-800 transition-colors"
+            className="mt-3 flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer hover:text-zinc-200 bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-800 transition-colors"
           >
             {soundEnabled ? (
               <>
@@ -222,17 +225,15 @@ export function PomodoroTimer() {
       <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 space-y-2">
         <div className="flex items-center justify-between text-xs text-zinc-400">
           <span className="flex items-center gap-1.5 font-semibold text-zinc-300">
-            <Target className="h-3.5 w-3.5 text-violet-400" /> Tarea en curso:
-          </span>
-          <span className="text-[10px] text-zinc-400 font-mono">
-            {completedSessions} Pomodoros hoy
+            <Target className="h-3.5 w-3.5 text-violet-400" /> Tarea en curso
           </span>
         </div>
         <input
           type="text"
           value={currentTask}
           onChange={(e) => setCurrentTask(e.target.value)}
-          placeholder="¿En qué tarea pondrás tu foco ahora?"
+          placeholder="¿En qué vas a trabajar ahora?"
+          aria-label="Tarea en curso"
           className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
         />
       </div>
@@ -240,21 +241,21 @@ export function PomodoroTimer() {
       {/* Session Progress Footer */}
       <div className="grid grid-cols-2 gap-4 w-full max-w-md">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-center">
-          <p className="text-[10px] uppercase font-semibold text-zinc-400">
-            Bloques Hoy
+          <p className="text-xs uppercase font-semibold text-zinc-400">
+            Bloques de hoy
           </p>
           <p className="text-xl font-bold text-white mt-0.5">
-            {completedSessions}{" "}
-            <span className="text-xs text-zinc-400 font-normal">pomodoros</span>
+            {blocks}{" "}
+            <span className="text-xs text-zinc-400 font-normal">{blocks === 1 ? "bloque" : "bloques"}</span>
           </p>
         </div>
 
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-center">
-          <p className="text-[10px] uppercase font-semibold text-zinc-400">
-            Tiempo Enfocado
+          <p className="text-xs uppercase font-semibold text-zinc-400">
+            Tiempo enfocado
           </p>
           <p className="text-xl font-bold text-violet-400 mt-0.5">
-            {completedSessions * 25}{" "}
+            {minutes}{" "}
             <span className="text-xs text-zinc-400 font-normal">minutos</span>
           </p>
         </div>

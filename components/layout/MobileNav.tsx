@@ -46,7 +46,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-base text-white">FOCUS</span>
-              <span className="text-[10px] text-zinc-400">Productividad</span>
+              <span className="text-[11px] text-zinc-400">Productividad</span>
             </div>
           </div>
 
@@ -68,7 +68,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
                         {viewer.fullName}
                       </p>
                       <span
-                        className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
+                        className={`text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded shrink-0 ${
                           role === "admin"
                             ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                             : "bg-zinc-800 text-zinc-400"
@@ -77,7 +77,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
                         {role === "admin" ? "👑 Admin" : "Usuario"}
                       </span>
                     </div>
-                    <p className="text-[10px] text-zinc-400 truncate">
+                    <p className="text-[11px] text-zinc-400 truncate">
                       {viewer.email}
                     </p>
                   </div>
@@ -91,12 +91,12 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
                 className="flex items-center justify-center gap-2 rounded-xl bg-zinc-900 border border-zinc-800 p-2.5 text-xs font-semibold text-zinc-200 hover:text-white"
               >
                 <LogIn className="h-4 w-4 text-emerald-400" />
-                <span>Iniciar Sesión / Registro</span>
+                <span>Iniciar sesión</span>
               </Link>
             )}
 
-            <p className="text-[10px] text-zinc-500 text-center">
-              Focus App • Cada usuario con su propia guía
+            <p className="text-[11px] text-zinc-500 text-center">
+              Focus · Hábitos, planificación y foco
             </p>
           </div>
         </div>

@@ -81,8 +81,6 @@ export const ritualInput = z
 
 export const profileInput = z.object({
   fullName: z.string().trim().min(1).max(120).optional(),
-  birthDate: isoDate.optional(),
-  targetAge: z.number().int().min(1).max(130).optional(),
   timezone: timezone.optional(),
 });
 

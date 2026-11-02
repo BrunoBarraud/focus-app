@@ -4,10 +4,32 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { SESSION_EXPIRED, dbFail, fail, ok, parse, requireUser } from "@/lib/action-helpers";
 import { mapDream, mapGoal, progressOf } from "@/lib/mappers";
-import type { ActionResult, Dream, Goal } from "@/lib/types";
+import type { ActionResult, Dream, Goal, GoalMilestone } from "@/lib/types";
 import { dreamInput, dreamStatus, goalInput, uuid } from "@/lib/validation";
 
-const DEFAULT_MILESTONES = ["Definir plan estratégico", "Ejecutar fase intermedia", "Consolidación final"];
+type Supabase = NonNullable<Awaited<ReturnType<typeof requireUser>>>["supabase"];
+
+/** Recalcula y guarda el progreso de una meta a partir de sus hitos reales. */
+async function recomputeProgress(
+  supabase: Supabase,
+  userId: string,
+  goalId: string
+): Promise<number | { ok: false; error: string }> {
+  const { data: siblings, error } = await supabase
+    .from("goal_milestones")
+    .select("completed")
+    .eq("goal_id", goalId);
+  if (error) return dbFail("recalcular el progreso", error);
+
+  const progress = progressOf(siblings);
+  const { error: goalError } = await supabase
+    .from("goals")
+    .update({ progress })
+    .eq("id", goalId)
+    .eq("user_id", userId);
+  if (goalError) return dbFail("guardar el progreso", goalError);
+  return progress;
+}
 
 function revalidateGoals() {
   revalidatePath("/dashboard");
@@ -40,19 +62,23 @@ export async function addGoalAction(input: z.input<typeof goalInput>): Promise<A
     .single();
   if (error) return dbFail("crear la meta", error);
 
-  const titles = goal.milestones?.length ? goal.milestones : DEFAULT_MILESTONES;
-  const { error: milestonesError } = await session.supabase.from("goal_milestones").insert(
-    titles.map((title, position) => ({
-      goal_id: created.id,
-      user_id: session.user.id,
-      title,
-      position,
-    }))
-  );
-  if (milestonesError) {
-    // Sin hitos la meta queda inutilizable: se deshace para no dejarla a medias.
-    await session.supabase.from("goals").delete().eq("id", created.id);
-    return dbFail("crear los hitos de la meta", milestonesError);
+  // Los hitos los escribe el usuario (al crear la meta o después). Ya no se
+  // agregan hitos genéricos inventados.
+  const titles = goal.milestones ?? [];
+  if (titles.length > 0) {
+    const { error: milestonesError } = await session.supabase.from("goal_milestones").insert(
+      titles.map((title, position) => ({
+        goal_id: created.id,
+        user_id: session.user.id,
+        title,
+        position,
+      }))
+    );
+    if (milestonesError) {
+      // Se deshace para no dejar la meta a medias.
+      await session.supabase.from("goals").delete().eq("id", created.id);
+      return dbFail("crear los hitos de la meta", milestonesError);
+    }
   }
 
   const { data: full, error: reloadError } = await session.supabase
@@ -106,19 +132,72 @@ export async function setMilestoneAction(
   if (error) return dbFail("actualizar el hito", error);
   if (!milestone) return fail("El hito ya no existe.");
 
-  const { data: siblings, error: siblingsError } = await session.supabase
-    .from("goal_milestones")
-    .select("completed")
-    .eq("goal_id", milestone.goal_id);
-  if (siblingsError) return dbFail("recalcular el progreso", siblingsError);
+  const progress = await recomputeProgress(session.supabase, session.user.id, milestone.goal_id);
+  if (typeof progress !== "number") return progress;
 
-  const progress = progressOf(siblings);
-  const { error: goalError } = await session.supabase
-    .from("goals")
-    .update({ progress })
-    .eq("id", milestone.goal_id)
-    .eq("user_id", session.user.id);
-  if (goalError) return dbFail("guardar el progreso", goalError);
+  revalidateGoals();
+  return ok({ progress });
+}
+
+export async function addMilestoneAction(
+  goalId: string,
+  title: string
+): Promise<ActionResult<{ milestone: GoalMilestone; progress: number }>> {
+  const parsed = parse(z.object({ goalId: uuid, title: z.string().trim().min(1, "Escribí el hito.").max(200) }), {
+    goalId,
+    title,
+  });
+  if (!parsed.ok) return parsed;
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+
+  const { data: last, error: lastError } = await session.supabase
+    .from("goal_milestones")
+    .select("position")
+    .eq("goal_id", parsed.data.goalId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) return dbFail("agregar el hito", lastError);
+
+  // RLS exige que la meta sea del usuario (with check sobre goals).
+  const { data, error } = await session.supabase
+    .from("goal_milestones")
+    .insert({
+      goal_id: parsed.data.goalId,
+      user_id: session.user.id,
+      title: parsed.data.title,
+      position: (last?.position ?? -1) + 1,
+    })
+    .select("id, title, completed")
+    .single();
+  if (error) return dbFail("agregar el hito", error);
+
+  const progress = await recomputeProgress(session.supabase, session.user.id, parsed.data.goalId);
+  if (typeof progress !== "number") return progress;
+
+  revalidateGoals();
+  return ok({ milestone: { id: data.id, title: data.title, completed: data.completed }, progress });
+}
+
+export async function deleteMilestoneAction(milestoneId: string): Promise<ActionResult<{ progress: number }>> {
+  const parsed = parse(uuid, milestoneId);
+  if (!parsed.ok) return parsed;
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+
+  const { data, error } = await session.supabase
+    .from("goal_milestones")
+    .delete()
+    .eq("id", parsed.data)
+    .eq("user_id", session.user.id)
+    .select("goal_id")
+    .maybeSingle();
+  if (error) return dbFail("eliminar el hito", error);
+  if (!data) return fail("El hito ya no existe.");
+
+  const progress = await recomputeProgress(session.supabase, session.user.id, data.goal_id);
+  if (typeof progress !== "number") return progress;
 
   revalidateGoals();
   return ok({ progress });

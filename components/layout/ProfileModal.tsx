@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { getProfileAction, updateProfileAction } from "@/app/actions/profile";
 import type { UserRole } from "@/lib/types";
-import { User, Calendar, Target, AlertCircle, Crown } from "lucide-react";
+import { User, Globe, AlertCircle, Crown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface ProfileModalProps {
@@ -24,8 +24,7 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
 
   const [email, setEmail] = React.useState("");
   const [fullName, setFullName] = React.useState("");
-  const [birthDate, setBirthDate] = React.useState("");
-  const [targetAge, setTargetAge] = React.useState(80);
+  const [timezone, setTimezone] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
@@ -40,8 +39,7 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
       if (res.ok) {
         setEmail(res.data.email);
         setFullName(res.data.fullName || res.data.email.split("@")[0]);
-        setBirthDate(res.data.birthDate);
-        setTargetAge(res.data.targetAge);
+        setTimezone(res.data.timezone);
       } else {
         setErrorMsg(res.error);
       }
@@ -61,8 +59,6 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
 
     const res = await updateProfileAction({
       fullName: fullName.trim() || undefined,
-      birthDate: birthDate || undefined,
-      targetAge: Number(targetAge) || 80,
     });
     setSaving(false);
 
@@ -79,8 +75,8 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Configurar Perfil"
-      description="Personaliza tus datos reales para sincronizar tu identidad y expectativa de vida."
+      title="Tu perfil"
+      description="Cómo te saluda Focus y desde dónde se calculan tus recordatorios."
       className="border-violet-500/30 shadow-violet-950/30"
     >
       {loading ? (
@@ -100,7 +96,7 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
           {/* Email (Readonly) */}
           <div>
             <label className="block text-xs font-medium text-zinc-400 mb-1">
-              Correo Electrónico (Cuenta)
+              Correo electrónico
             </label>
             <input
               type="email"
@@ -113,7 +109,7 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
           {/* Full Name */}
           <div>
             <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-violet-400" /> Nombre Completo / Apodo
+              <User className="h-3.5 w-3.5 text-violet-400" /> Nombre
             </label>
             <input
               type="text"
@@ -125,64 +121,42 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Birth Date */}
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-violet-400" /> Fecha de Nacimiento
-              </label>
-              <input
-                type="date"
-                required
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none transition-colors"
-              />
-              <span className="text-[10px] text-zinc-400 mt-1 block">
-                Calcula tus semanas vividas
-              </span>
-            </div>
-
-            {/* Target Age */}
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
-                <Target className="h-3.5 w-3.5 text-violet-400" /> Expectativa de Vida (Años)
-              </label>
-              <input
-                type="number"
-                min={40}
-                max={120}
-                required
-                value={targetAge}
-                onChange={(e) => setTargetAge(Number(e.target.value))}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none transition-colors"
-              />
-              <span className="text-[10px] text-zinc-400 mt-1 block">
-                Por defecto: 80 años (~4.160 semanas)
-              </span>
-            </div>
+          {/* Zona horaria (se detecta sola al abrir la app) */}
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-1 flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-violet-400" /> Zona horaria
+            </label>
+            <input
+              type="text"
+              disabled
+              value={timezone ?? "Se detecta al abrir la app"}
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-400 cursor-not-allowed"
+            />
+            <span className="text-xs text-zinc-400 mt-1 block">
+              Se toma de tu navegador y se usa para enviarte los recordatorios a tiempo.
+            </span>
           </div>
 
           {/* Rol de Usuario (Lectura protegida) */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
-                <Crown className="h-3.5 w-3.5 text-amber-400" /> Rol en la Aplicación
+                <Crown className="h-3.5 w-3.5 text-amber-400" /> Rol
               </label>
               <span
-                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full ${
                   userRole === "admin"
                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                     : "bg-zinc-800 text-zinc-400 border border-zinc-700/50"
                 }`}
               >
-                {userRole === "admin" ? "👑 Administrador" : "👤 Usuario Común"}
+                {userRole === "admin" ? "Administrador" : "Usuario"}
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500 leading-tight">
+            <p className="text-xs text-zinc-400 leading-snug">
               {userRole === "admin"
-                ? "Tienes permisos de Administrador para moderar y responder tickets de soporte y feedback."
-                : "Rol estándar. Solo los correos designados como administradores tienen acceso al panel de moderación."}
+                ? "Podés ver y responder los mensajes de soporte de todos los usuarios."
+                : "Ves y gestionás solo tus propios datos y mensajes de soporte."}
             </p>
           </div>
 
@@ -203,7 +177,7 @@ export function ProfileModal({ open, onOpenChange, role: userRole }: ProfileModa
               disabled={saving}
               className="gap-2"
             >
-              {saving ? "Guardando..." : "Guardar Cambios"}
+              {saving ? "Guardando..." : "Guardar cambios"}
             </Button>
           </div>
         </form>

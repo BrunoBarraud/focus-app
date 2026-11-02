@@ -11,13 +11,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Focus • Sistema de Productividad & Crecimiento Personal",
+  title: "Focus · Hábitos, planificación y foco",
   description:
-    "Aplicación integral de hábitos, enfoque profundo, planificación semanal y metas de vida en Dark Mode.",
+    "Sostené tus hábitos, planificá la semana y trabajá en bloques de concentración, con recordatorios antes de cada tarea.",
   manifest: "/manifest.json",
   openGraph: {
-    title: "Focus • Productividad & Crecimiento Personal",
-    description: "Tu sistema integral de hábitos, enfoque y metas de vida.",
+    title: "Focus · Hábitos, planificación y foco",
+    description: "Tus hábitos, tu semana y tu foco, en un solo lugar.",
     type: "website",
   },
 };

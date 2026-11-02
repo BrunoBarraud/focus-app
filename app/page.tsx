@@ -1,70 +1,116 @@
-import * as React from "react";
 import Link from "next/link";
 import { getViewer } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Zap,
-  Sparkles,
   ArrowRight,
   CheckCircle2,
-  Hourglass,
   Timer,
   Calendar,
   Target,
-  Flame,
-  ShieldCheck,
+  Bell,
+  Smartphone,
   Compass,
-  Quote,
-  Layers,
-  ChevronRight,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+const PILLARS = [
+  {
+    icon: CheckCircle2,
+    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    title: "Hábitos",
+    description:
+      "Una matriz del mes para marcar cada día lo que cumpliste. Ves tu racha actual, tu mejor racha y cuánto te falta para la meta del mes.",
+  },
+  {
+    icon: Calendar,
+    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+    title: "Planificación",
+    description:
+      "Organizá la semana de lunes a domingo o mirá el mes completo. Tareas puntuales o que se repiten, con hora, prioridad y calendarios separados.",
+  },
+  {
+    icon: Timer,
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    title: "Foco",
+    description:
+      "Un temporizador Pomodoro para trabajar en bloques de 25 o 50 minutos, con descansos y aviso sonoro al terminar.",
+  },
+] as const;
+
+const STEPS = [
+  {
+    title: "Planificá tu semana",
+    description: "Cargá las tareas de cada día y marcá cuáles se repiten todas las semanas.",
+  },
+  {
+    title: "Marcá tus hábitos",
+    description: "Un clic por día. La racha y el progreso del mes se calculan solos.",
+  },
+  {
+    title: "Trabajá con foco",
+    description: "Elegí la tarea más importante y arrancá un bloque de concentración.",
+  },
+] as const;
+
+const EXTRAS = [
+  {
+    icon: Bell,
+    title: "Recordatorios",
+    description: "Te avisa 30, 15 y 5 minutos antes de cada tarea con horario.",
+  },
+  {
+    icon: Target,
+    title: "Metas con hitos",
+    description: "Dividí cada meta en pasos concretos y mirá cómo avanza a medida que los cumplís.",
+  },
+  {
+    icon: Compass,
+    title: "Rueda de la vida",
+    description: "Evaluá del 1 al 10 cómo estás en cada área y detectá dónde poner energía.",
+  },
+  {
+    icon: Smartphone,
+    title: "En tu celular",
+    description: "Instalala desde el navegador y usala como una app más.",
+  },
+] as const;
+
 export default async function LandingPage() {
   const user = await getViewer();
+  const primaryHref = user ? "/dashboard" : "/login?modo=registro";
+  const primaryLabel = user ? "Ir a mi panel" : "Crear mi cuenta";
 
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col relative overflow-x-hidden">
-      {/* Ambient background glows - Electric Violet */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 -z-10 h-[600px] w-[800px] rounded-full bg-violet-600/15 blur-[160px] pointer-events-none" />
-      <div className="fixed top-1/3 -right-40 -z-10 h-[500px] w-[500px] rounded-full bg-fuchsia-600/10 blur-[180px] pointer-events-none" />
       <div className="fixed bottom-0 -left-40 -z-10 h-[500px] w-[500px] rounded-full bg-violet-800/10 blur-[180px] pointer-events-none" />
 
-      {/* 1. Header / Navbar */}
+      {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-md shadow-violet-600/30">
               <Zap className="h-5 w-5 fill-current" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-white group-hover:text-violet-400 transition-colors">
-                FOCUS
-              </span>
-              <span className="text-[10px] text-zinc-400 tracking-wider uppercase font-medium">
-                Productividad Consciente
-              </span>
-            </div>
+            <span className="font-bold tracking-tight text-lg text-white">Focus</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-            <a href="#caracteristicas" className="hover:text-violet-300 transition-colors">
-              Características
+            <a href="#funciones" className="hover:text-white transition-colors">
+              Funciones
             </a>
-            <a href="#filosofia" className="hover:text-violet-300 transition-colors">
-              Filosofía Estoica
-            </a>
-            <a href="#pilares" className="hover:text-violet-300 transition-colors">
-              Pilares
+            <a href="#como-funciona" className="hover:text-white transition-colors">
+              Cómo funciona
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {user ? (
               <Link href="/dashboard">
                 <Button variant="glow" size="sm" className="gap-2">
-                  Ir al Dashboard
+                  Ir a mi panel
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -72,13 +118,12 @@ export default async function LandingPage() {
               <>
                 <Link href="/login">
                   <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-white">
-                    Iniciar Sesión
+                    Iniciar sesión
                   </Button>
                 </Link>
-                <Link href="/login">
-                  <Button variant="glow" size="sm" className="gap-1.5 shadow-violet-600/30">
-                    Comenzar Gratis
-                    <ArrowRight className="h-4 w-4" />
+                <Link href="/login?modo=registro">
+                  <Button variant="glow" size="sm">
+                    Crear cuenta
                   </Button>
                 </Link>
               </>
@@ -87,274 +132,102 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      {/* 2. Hero Section */}
-      <section className="relative pt-16 pb-20 sm:pt-24 sm:pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full text-center">
-        {/* Violet Pill Tag */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-semibold mb-6 shadow-sm shadow-violet-500/10 animate-fade-in">
-          <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-          <span>El sistema operativo para tu mejor versión</span>
-          <ChevronRight className="h-3 w-3 text-violet-400" />
-        </div>
-
-        {/* Title */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-[1.1]">
-          Domina tu tiempo.{" "}
-          <span className="bg-gradient-to-r from-violet-400 via-fuchsia-300 to-indigo-300 bg-clip-text text-transparent">
-            Construye hábitos
-          </span>{" "}
-          con propósito implacable.
+      {/* Hero */}
+      <section className="pt-16 pb-16 sm:pt-24 sm:pb-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full text-center">
+        <p className="text-sm font-semibold text-violet-300 mb-5">Hábitos · Planificación · Foco</p>
+        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-[1.1]">
+          Tus hábitos, tu semana y tu foco,{" "}
+          <span className="bg-gradient-to-r from-violet-400 to-indigo-300 bg-clip-text text-transparent">
+            en un solo lugar.
+          </span>
         </h1>
-
-        {/* Subtitle */}
-        <p className="mt-6 text-base sm:text-lg lg:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Focus fusiona la filosofía estoica del <em>Memento Mori</em> con hábitos atómicos, bloques de enfoque profundo y planificación semanal sin distracciones.
+        <p className="mt-6 text-base sm:text-lg text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+          Focus te ayuda a sostener hábitos, planificar la semana y trabajar en bloques de concentración, con
+          recordatorios que te avisan antes de cada tarea.
         </p>
 
-        {/* Action Buttons */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href={user ? "/dashboard" : "/login"}>
-            <Button
-              variant="glow"
-              size="lg"
-              className="w-full sm:w-auto h-12 px-8 text-base font-semibold shadow-xl shadow-violet-600/40 gap-2.5"
-            >
-              {user ? "Ingresar a mi Dashboard" : "Empezar Gratis Ahora"}
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link href={primaryHref} className="w-full sm:w-auto">
+            <Button variant="glow" size="lg" className="w-full sm:w-auto h-12 px-8 gap-2.5">
+              {primaryLabel}
               <ArrowRight className="h-5 w-5" />
             </Button>
           </Link>
+          {!user && (
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8">
+                Ya tengo cuenta
+              </Button>
+            </Link>
+          )}
+        </div>
+      </section>
 
-          <Link href="/dashboard">
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full sm:w-auto h-12 px-8 text-base border-zinc-800 hover:border-violet-500/40 hover:bg-zinc-900/80 gap-2 text-zinc-300 hover:text-white"
-            >
-              Ver Dashboard
-            </Button>
-          </Link>
+      {/* Los tres pilares */}
+      <section id="funciones" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full border-t border-zinc-800/80 scroll-mt-16">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Tres herramientas que se complementan</h2>
+          <p className="text-zinc-400 mt-3 text-base">
+            Lo que planificás, lo que repetís todos los días y el tiempo que le dedicás, conectado.
+          </p>
         </div>
 
-        {/* Trust Badges */}
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400">
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4 text-violet-400" />
-            <span>Datos 100% Privados con Supabase</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Flame className="h-4 w-4 text-amber-400" />
-            <span>Rachas y Consistencia Diaria</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Hourglass className="h-4 w-4 text-violet-400" />
-            <span>Memento Mori en Tiempo Real</span>
-          </div>
-        </div>
-
-        {/* Hero Visual Mockup Preview */}
-        <div className="mt-16 sm:mt-20 relative mx-auto max-w-5xl rounded-2xl border border-violet-500/20 bg-zinc-950/80 p-2 sm:p-4 shadow-2xl shadow-violet-950/50 backdrop-blur-2xl">
-          <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-4 sm:p-6 text-left space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-rose-500/80" />
-                <span className="h-3 w-3 rounded-full bg-amber-500/80" />
-                <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-                <span className="text-xs font-mono text-zinc-400 ml-2">focus.app / dashboard</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {PILLARS.map(({ icon: Icon, color, title, description }) => (
+            <div key={title} className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-7">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-xl border mb-5 ${color}`}>
+                <Icon className="h-6 w-6" />
               </div>
-              <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-wider bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">
-                Live Preview
+              <h3 className="text-xl font-bold text-white">{title}</h3>
+              <p className="text-sm text-zinc-400 mt-2 leading-relaxed">{description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Cómo funciona */}
+      <section id="como-funciona" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full scroll-mt-16">
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight text-center mb-12">Cómo funciona</h2>
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="rounded-2xl border border-zinc-800/80 bg-zinc-950/60 p-6">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-sm font-bold text-white">
+                {i + 1}
               </span>
-            </div>
+              <h3 className="text-lg font-bold text-white mt-4">{step.title}</h3>
+              <p className="text-sm text-zinc-400 mt-1.5 leading-relaxed">{step.description}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
-            {/* Quick Hero Bento Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-xl bg-zinc-950/80 border border-zinc-800/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 mb-1">
-                  <Hourglass className="h-4 w-4" /> Memento Mori
-                </div>
-                <p className="text-2xl font-bold font-mono text-white">4.160</p>
-                <p className="text-[11px] text-zinc-400">Semanas de vida esperadas</p>
-                <div className="mt-2.5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400 w-2/5" />
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-zinc-950/80 border border-zinc-800/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mb-1">
-                  <Flame className="h-4 w-4 fill-emerald-400" /> Hábitos Atómicos
-                </div>
-                <p className="text-2xl font-bold font-mono text-white">100%</p>
-                <p className="text-[11px] text-zinc-400">Racha activa de 18 días</p>
-                <div className="mt-2.5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                  <div className="h-full bg-emerald-500 w-4/5" />
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-zinc-950/80 border border-zinc-800/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 mb-1">
-                  <Timer className="h-4 w-4" /> Enfoque Profundo
-                </div>
-                <p className="text-2xl font-bold font-mono text-white">25:00</p>
-                <p className="text-[11px] text-zinc-400">Bloque de deep work sin ruidos</p>
-                <div className="mt-2.5 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-                  <div className="h-full bg-amber-500 w-1/2" />
-                </div>
+      {/* Extras */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full border-t border-zinc-800/80">
+        <h2 className="text-2xl font-bold text-white tracking-tight mb-8">También incluye</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {EXTRAS.map(({ icon: Icon, title, description }) => (
+            <div key={title} className="flex gap-3">
+              <Icon className="h-5 w-5 text-violet-400 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-white">{title}</h3>
+                <p className="text-sm text-zinc-400 mt-1 leading-relaxed">{description}</p>
               </div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* 3. Bento Grid: 4 Core Features */}
-      <section id="caracteristicas" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full border-t border-zinc-800/80">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-violet-400 mb-2">
-            <Layers className="h-3.5 w-3.5" /> Arquitectura de Alto Rendimiento
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-            Todo lo necesario para una mente implacable.
-          </h2>
-          <p className="text-zinc-400 mt-4 text-sm sm:text-base">
-            Diseñado sin distracciones, sin notificaciones ruidosas y con foco absoluto en lo que realmente mueve la aguja en tu vida.
+      {/* CTA final */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full text-center">
+        <div className="rounded-3xl border border-zinc-800/80 bg-zinc-950/90 p-8 sm:p-12">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">Empezá a organizar tu semana</h2>
+          <p className="text-base text-zinc-400 max-w-xl mx-auto mt-3">
+            Crear la cuenta lleva un minuto. Después cargás tus hábitos y tus tareas, y listo.
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Card 1: Hábitos */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              Matriz de Hábitos Atómicos
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Seguimiento visual día por día del mes. Categorización en Mente, Cuerpo, Trabajo y Espíritu, con cálculo automático de rachas y consistencia.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Rachas en tiempo real</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* Card 2: Enfoque Pomodoro */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <Timer className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              Temporizador Deep Work
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Sesiones de 25 minutos de concentración ininterrumpida y descansos estratégicos, con avisos acústicos por Web Audio y modo zen sin interferencias.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Cero distracciones</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* Card 3: Planificador Semanal L-D */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              Planificador Semanal L-D
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Tablero Kanban horizontal dinámico. Asigna prioridades, tareas clave y detecta automáticamente el día actual de la semana para una ejecución fluida.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Perspectiva de 7 días</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* Card 4: Memento Mori */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <Hourglass className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              Memento Mori Consciente
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Calcula con precisión las semanas vividas frente a tu expectativa de vida real. Una dosis estoica de perspectiva para valorar cada instante presente.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Perspectiva de vida</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* Card 5: Rueda de la Vida */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <Compass className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              Rueda de la Vida & Objetivos
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Gráfico de radar interactivo para calibrar tus 8 áreas fundamentales (salud, finanzas, carrera, relaciones), metas anuales y lista de sueños.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Equilibrio holístico</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-
-          {/* Card 6: Eat That Frog */}
-          <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-6 sm:p-8 hover:border-violet-500/40 hover:bg-zinc-900/60 transition-all group">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-5 group-hover:scale-110 transition-transform">
-              <Target className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white group-hover:text-violet-300 transition-colors">
-              El Sapo del Día (Eat That Frog)
-            </h3>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-2 leading-relaxed">
-              Define la tarea más difícil y crucial cada mañana. Cómetela a primera hora y siente el impulso imparable de haber conquistado tu mayor reto.
-            </p>
-            <div className="mt-6 pt-4 border-t border-zinc-800/60 flex items-center text-xs text-violet-400 font-semibold gap-1">
-              <span>Prioridad absoluta</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Stoic Philosophy Quote Section */}
-      <section id="filosofia" className="py-20 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full text-center">
-        <div className="rounded-3xl border border-violet-500/30 bg-gradient-to-b from-zinc-900/80 via-zinc-950 to-zinc-900/40 p-8 sm:p-14 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 -z-10 h-64 w-64 rounded-full bg-violet-600/15 blur-3xl" />
-          <Quote className="h-10 w-10 text-violet-400 mx-auto mb-6 opacity-80" />
-
-          <blockquote className="text-xl sm:text-3xl font-serif italic text-zinc-200 leading-relaxed max-w-3xl mx-auto">
-            &ldquo;No es que tengamos poco tiempo, sino que perdemos mucho. La vida es lo bastante larga y para la consecución de las cosas más grandes se nos ha dado con generosidad si toda ella se empleara bien.&rdquo;
-          </blockquote>
-
-          <p className="text-xs sm:text-sm font-semibold text-violet-400 uppercase tracking-widest mt-6">
-            — Lucio Anneo Séneca, De Brevitate Vitae
-          </p>
-        </div>
-      </section>
-
-      {/* 5. Final CTA Banner */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full text-center">
-        <div className="rounded-3xl border border-zinc-800/80 bg-zinc-950/90 p-8 sm:p-12 relative overflow-hidden glow-violet">
-          <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-transparent to-fuchsia-600/10 pointer-events-none" />
-
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Comienza a diseñar tu vida hoy mismo.
-          </h2>
-          <p className="text-sm text-zinc-400 max-w-xl mx-auto mt-3">
-            Únete a la filosofía de la productividad consciente. Sin spam, sin distracciones, solo claridad y foco.
-          </p>
-
           <div className="mt-8 flex justify-center">
-            <Link href={user ? "/dashboard" : "/login"}>
-              <Button variant="glow" size="lg" className="h-12 px-8 text-base shadow-lg shadow-violet-600/40 gap-2">
-                {user ? "Ir a mi Dashboard" : "Crear mi Cuenta Gratuita"}
+            <Link href={primaryHref}>
+              <Button variant="glow" size="lg" className="h-12 px-8 gap-2">
+                {primaryLabel}
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
@@ -362,25 +235,21 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* 6. Footer */}
+      {/* Footer */}
       <footer className="mt-auto border-t border-zinc-800/80 py-8 px-4 sm:px-6 lg:px-8 bg-zinc-950">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-400">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-600 text-white font-bold text-xs">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-violet-600 text-white">
               <Zap className="h-3.5 w-3.5 fill-current" />
             </div>
-            <span className="font-semibold text-zinc-200">FOCUS App</span>
-            <span>• Productividad & Desarrollo Personal Consciente</span>
+            <span className="font-semibold text-zinc-200">Focus</span>
+            <span>· Hábitos, planificación y foco</span>
           </div>
-
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="hover:text-violet-300 transition-colors">
-              Dashboard
+            <Link href={user ? "/dashboard" : "/login"} className="hover:text-white transition-colors">
+              {user ? "Mi panel" : "Iniciar sesión"}
             </Link>
-            <Link href="/login" className="hover:text-violet-300 transition-colors">
-              Acceso
-            </Link>
-            <span>&copy; {new Date().getFullYear()} Focus. Todos los derechos reservados.</span>
+            <span>&copy; {new Date().getFullYear()} Focus</span>
           </div>
         </div>
       </footer>

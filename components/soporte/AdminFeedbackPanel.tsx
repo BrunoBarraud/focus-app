@@ -34,17 +34,17 @@ const TYPE_CONFIG: Record<SupportFeedbackType, { label: string; icon: React.Reac
     color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
   },
   improvement: {
-    label: 'Mejora UI/UX',
+    label: 'Mejora',
     icon: <Sparkles className="w-3.5 h-3.5" />,
     color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
   },
   bug: {
-    label: 'Reporte de Bug',
+    label: 'Error',
     icon: <Bug className="w-3.5 h-3.5" />,
     color: 'text-red-400 bg-red-500/10 border-red-500/20',
   },
   question: {
-    label: 'Duda / Soporte',
+    label: 'Consulta',
     icon: <HelpCircle className="w-3.5 h-3.5" />,
     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   },
@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<SupportFeedbackStatus, { label: string; color: strin
     color: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
   },
   in_review: {
-    label: 'En Revisión',
+    label: 'En revisión',
     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   },
   resolved: {
@@ -159,7 +159,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
 
         <div className="p-4 bg-[#141414]/90 border border-blue-500/10 rounded-2xl flex flex-col">
           <div className="flex items-center justify-between text-blue-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">En Revisión</span>
+            <span className="text-xs font-medium uppercase tracking-wider">En revisión</span>
             <AlertTriangle className="w-4 h-4 text-blue-400" />
           </div>
           <span className="text-2xl font-bold text-blue-300 tracking-tight">{inReviewTickets}</span>
@@ -183,7 +183,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
-            placeholder="Buscar por título, contenido o usuario..."
+            placeholder="Buscar por título, contenido o usuario"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[#1c1c1e] text-zinc-200 text-xs pl-9 pr-4 py-2.5 rounded-xl border border-white/5 focus:border-white/20 focus:outline-none placeholder-zinc-500 transition-colors"
@@ -201,7 +201,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
             >
               <option value="all">Todos los estados</option>
               <option value="pending">Pendientes</option>
-              <option value="in_review">En Revisión</option>
+              <option value="in_review">En revisión</option>
               <option value="resolved">Resueltos</option>
               <option value="dismissed">Descartados</option>
             </select>
@@ -218,8 +218,8 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
               <option value="all">Todas las categorías</option>
               <option value="suggestion">Sugerencias</option>
               <option value="improvement">Mejoras</option>
-              <option value="bug">Bugs</option>
-              <option value="question">Dudas</option>
+              <option value="bug">Errores</option>
+              <option value="question">Consultas</option>
               <option value="other">Otros</option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -232,7 +232,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
         <div className="p-12 text-center bg-[#141414]/50 border border-white/5 rounded-2xl">
           <ShieldCheck className="w-10 h-10 text-zinc-600 mx-auto mb-3" />
           <p className="text-zinc-300 text-sm font-medium">No se encontraron tickets</p>
-          <p className="text-zinc-500 text-xs mt-1">Prueba ajustando los filtros o el término de búsqueda.</p>
+          <p className="text-zinc-500 text-xs mt-1">Probá con otros filtros o con otra búsqueda.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -287,10 +287,10 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
                         onChange={(e) => handleStatusChange(item.id, e.target.value as SupportFeedbackStatus)}
                         className="appearance-none bg-[#1c1c1e] text-xs text-zinc-200 pl-3 pr-7 py-1.5 rounded-lg border border-white/10 hover:border-white/20 focus:outline-none transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        <option value="pending">Marcar Pendiente</option>
-                        <option value="in_review">Marcar En Revisión</option>
-                        <option value="resolved">Marcar Resuelto</option>
-                        <option value="dismissed">Marcar Descartado</option>
+                        <option value="pending">Marcar pendiente</option>
+                        <option value="in_review">Marcar en revisión</option>
+                        <option value="resolved">Marcar resuelto</option>
+                        <option value="dismissed">Marcar descartado</option>
                       </select>
                       <ChevronDown className="w-3 h-3 text-zinc-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -331,7 +331,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-blue-400 flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5" />
-                        Respuesta Oficial del Administrador
+                        Respuesta del administrador
                       </span>
                     </div>
                     <p className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
@@ -348,7 +348,7 @@ export function AdminFeedbackPanel({ feedbacks, onRefresh }: AdminFeedbackPanelP
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="Escribe una respuesta para el usuario..."
+                      placeholder="Escribí una respuesta para el usuario"
                       value={responseInputs[item.id] ?? (item.adminResponse || '')}
                       onChange={(e) =>
                         setResponseInputs((prev) => ({

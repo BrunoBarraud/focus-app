@@ -12,11 +12,11 @@ export default async function ObjetivosPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-          <Target className="h-3.5 w-3.5" /> Visión Estratégica
+          <Target className="h-3.5 w-3.5" /> Mediano y largo plazo
         </div>
-        <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight">Objetivos & Metas</h1>
+        <h1 className="text-2xl sm:text-4xl font-bold text-white tracking-tight">Objetivos</h1>
         <p className="text-sm text-zinc-400 mt-1">
-          Alineación entre tus proyectos profesionales, tu equilibrio vital y tus grandes sueños.
+          Tus metas con hitos, cómo estás en cada área y lo que querés hacer algún día.
         </p>
       </div>
 
@@ -29,13 +29,13 @@ export default async function ObjetivosPage() {
       <section className="space-y-4" aria-labelledby="metas-heading">
         <div className="flex items-center justify-between">
           <h2 id="metas-heading" className="text-xl font-bold text-white flex items-center gap-2">
-            <Compass className="h-5 w-5 text-violet-400" /> Metas Clave
+            <Compass className="h-5 w-5 text-violet-400" /> Metas
           </h2>
         </div>
         <GoalsTabs initialGoals={goals} />
       </section>
 
-      {/* 3. Lista de Sueños por Cumplir (Bucket List) */}
+      {/* 3. Sueños */}
       <section aria-labelledby="lista-suenos-heading">
         <DreamsList initialDreams={dreams} />
       </section>

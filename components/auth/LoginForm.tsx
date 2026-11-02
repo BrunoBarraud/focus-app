@@ -6,11 +6,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useClientValue } from "@/lib/client-hooks";
-import { Zap, Lock, Mail, User, Calendar, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Zap, Lock, Mail, User, AlertCircle, CheckCircle2 } from "lucide-react";
 
 const INITIAL_STATE: AuthFormState = {};
 
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({ next, mode = "login" }: { next?: string; mode?: "login" | "signup" }) {
   // useActionState: el redirect de la server action funciona de forma nativa
   // (antes se atrapaba el error NEXT_REDIRECT comparando el mensaje).
   const [loginState, loginFormAction, loginPending] = React.useActionState(loginAction, INITIAL_STATE);
@@ -33,10 +33,10 @@ export function LoginForm({ next }: { next?: string }) {
             <Zap className="h-6 w-6 fill-current" />
           </div>
           <CardTitle className="text-2xl font-bold text-white tracking-tight">
-            Acceso a Focus
+            Entrar a Focus
           </CardTitle>
           <CardDescription className="text-xs text-zinc-400">
-            Tu santuario personal de hábitos, metas y desarrollo consciente
+            Tus hábitos, tu semana y tu foco, en un solo lugar.
           </CardDescription>
         </CardHeader>
 
@@ -54,10 +54,10 @@ export function LoginForm({ next }: { next?: string }) {
             </div>
           )}
 
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs defaultValue={mode} className="w-full">
             <TabsList className="grid grid-cols-2 w-full bg-zinc-900 border border-zinc-800/80">
-              <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="signup">Crear Cuenta</TabsTrigger>
+              <TabsTrigger value="login">Iniciar sesión</TabsTrigger>
+              <TabsTrigger value="signup">Crear cuenta</TabsTrigger>
             </TabsList>
 
             {/* TAB INICIAR SESIÓN */}
@@ -66,7 +66,7 @@ export function LoginForm({ next }: { next?: string }) {
                 <input type="hidden" name="next" value={next ?? ""} />
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1">
-                    Correo Electrónico
+                    Correo electrónico
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
@@ -145,21 +145,7 @@ export function LoginForm({ next }: { next?: string }) {
 
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1">
-                    Fecha de Nacimiento (opcional)
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
-                    <input
-                      type="date"
-                      name="birthDate"
-                      className="w-full rounded-lg border border-zinc-800 bg-zinc-900/70 pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1">
-                    Correo Electrónico
+                    Correo electrónico
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
@@ -196,7 +182,7 @@ export function LoginForm({ next }: { next?: string }) {
                   variant="glow"
                   className="w-full mt-2"
                 >
-                  {loading ? "Creando tu espacio..." : "Comenzar mi transformación"}
+                  {loading ? "Creando tu cuenta..." : "Crear mi cuenta"}
                 </Button>
               </form>
             </TabsContent>

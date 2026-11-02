@@ -17,7 +17,7 @@ const CATEGORY_COLORS: Record<HabitCategory, { label: string; bg: string; text: 
 };
 
 export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
-  const { habits, currentDay, daysInMonth, isPending, toggleDay, addHabit, renameHabit, deleteHabit } =
+  const { habits, ready, currentDay, daysInMonth, isPending, toggleDay, addHabit, renameHabit, deleteHabit } =
     useHabits(initialHabits);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState<string>("");
@@ -63,11 +63,11 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <h2 className="text-lg font-bold text-white tracking-tight">
-              Matriz de Hábitos & Consistencia
+              Hábitos
             </h2>
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Registro diario con línea de tiempo y racha en tiempo real.
+            Marcá cada día lo que cumpliste.
           </p>
         </div>
 
@@ -88,7 +88,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
         >
           <input
             type="text"
-            placeholder="Nombre del hábito (ej: Ejercicios en Casa)..."
+            placeholder="Nombre del hábito (ej: caminar 30 minutos)"
             value={newHabitName}
             onChange={(e) => setNewHabitName(e.target.value)}
             autoFocus
@@ -123,7 +123,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
             type="submit"
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm"
           >
-            Guardar Hábito
+            Guardar hábito
           </button>
         </form>
       )}
@@ -136,7 +136,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
               {/* Lado izquierdo (Fijo / Sticky) */}
               <th className="sticky left-0 z-20 bg-zinc-950/95 backdrop-blur-md px-3 sm:px-4 py-3 min-w-[170px] sm:min-w-[240px] md:min-w-[280px] border-r border-white/[0.06]">
                 <div className="flex items-center justify-between">
-                  <span>HÁBITO & CATEGORÍA</span>
+                  <span>HÁBITO</span>
                   <span className="mr-1 sm:mr-2">RACHA</span>
                 </div>
               </th>
@@ -154,7 +154,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                     }`}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px]">{day}</span>
+                      <span className="text-[11px]">{day}</span>
                       {isToday && (
                         <span className="h-1 w-1 rounded-full bg-emerald-400 mt-0.5" />
                       )}
@@ -166,13 +166,19 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
           </thead>
 
           <tbody className="divide-y divide-white/[0.04]">
-            {habits.length === 0 ? (
+            {!ready ? (
+              <tr>
+                <td colSpan={daysArray.length + 1} className="py-12">
+                  <div className="mx-auto h-4 w-48 rounded bg-zinc-800/80 animate-pulse" aria-label="Cargando hábitos" />
+                </td>
+              </tr>
+            ) : habits.length === 0 ? (
               <tr>
                 <td
                   colSpan={daysArray.length + 1}
                   className="py-12 text-center text-xs text-zinc-500"
                 >
-                  No tienes hábitos registrados aún. Hacé clic en “Nuevo Hábito” para comenzar.
+                  Todavía no tenés hábitos. Tocá “Nuevo hábito” para crear el primero.
                 </td>
               </tr>
             ) : (
@@ -208,7 +214,7 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                             <div
                               onClick={() => startEditing(habit)}
                               className="group/name flex items-center gap-1.5 cursor-pointer"
-                              title="Haz clic para editar el nombre"
+                              title="Tocá para cambiar el nombre"
                             >
                               <span className="text-xs sm:text-sm font-semibold text-zinc-100 truncate group-hover/name:text-emerald-400 transition-colors">
                                 {habit.name}
@@ -220,11 +226,11 @@ export function HabitTrackerMatrix({ initialHabits }: HabitTrackerMatrixProps) {
                           {/* Badge de Categoría + Meta */}
                           <div className="flex items-center gap-2 mt-1">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
                             >
                               {catStyle.label}
                             </span>
-                            <span className="text-[10px] text-zinc-500">
+                            <span className="text-[11px] text-zinc-500">
                               Meta: {habit.monthlyTargetDays}d
                             </span>
                           </div>

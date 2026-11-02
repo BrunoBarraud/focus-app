@@ -109,7 +109,6 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
       priority: newTaskPriority,
       startTime: newTaskStartTime || undefined,
       calendarId: selectedCalendar !== "all" ? selectedCalendar : undefined,
-      tag: "Enfoque",
     });
     // Si falló, se devuelve el texto para no perder lo que se escribió.
     if (!created) setNewTaskTitle(title);
@@ -139,7 +138,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
               <CalendarIcon className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Organizador Inteligente</h2>
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Planificador</h2>
               <p className="text-xs text-zinc-400">
                 {viewMode === "week" ? "Semana en curso" : `Calendario del Mes • ${month.name}`}
               </p>
@@ -155,7 +154,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
                   viewMode === mode ? "bg-violet-600 text-white shadow-sm" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                {mode === "week" ? "Semana" : "Ver Mes"}
+                {mode === "week" ? "Semana" : "Mes"}
               </button>
             ))}
           </div>
@@ -182,7 +181,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
               <input
                 autoFocus
                 type="text"
-                placeholder="Nombre..."
+                placeholder="Nombre del calendario"
                 maxLength={60}
                 value={newCalendarName}
                 onChange={(e) => setNewCalendarName(e.target.value)}
@@ -251,7 +250,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
                   >
                     {Number(date.slice(8, 10))}
                   </span>
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-[11px] text-zinc-400">
                     {tasksForDay.length > 0 ? `${completedCount}/${tasksForDay.length}` : "—"}
                   </span>
                 </button>
@@ -261,7 +260,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
         ) : (
           /* 2. VISTA MES: fechas reales del mes en curso */
           <div className="space-y-2 mb-4 animate-in fade-in duration-200">
-            <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold text-zinc-500 pb-1">
+            <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-zinc-500 pb-1">
               {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
                 <span key={d}>{d}</span>
               ))}
@@ -312,7 +311,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
           <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
             {dayTasks.length === 0 ? (
               <div className="py-6 text-center text-xs text-zinc-500">
-                No hay tareas para este día. Escribí abajo para añadir una.
+                No hay tareas para este día. Escribí abajo para agregar una.
               </div>
             ) : (
               dayTasks.map((task) => (
@@ -353,12 +352,12 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
 
                   <div className="flex items-center gap-2 shrink-0 ml-2">
                     {task.startTime && (
-                      <span className="text-[10px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded-md border border-white/[0.05]">
+                      <span className="text-[11px] font-mono text-zinc-400 bg-zinc-950 px-1.5 py-0.5 rounded-md border border-white/[0.05]">
                         {task.startTime} {task.endTime ? `- ${task.endTime}` : ""}
                       </span>
                     )}
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase hidden sm:inline-flex ${PRIORITY_BADGES[task.priority]}`}
+                      className={`text-[11px] font-bold px-1.5 py-0.5 rounded border uppercase hidden sm:inline-flex ${PRIORITY_BADGES[task.priority]}`}
                     >
                       {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
                     </span>
@@ -381,7 +380,7 @@ function Planner({ initialData, today }: { initialData: PlannerData; today: stri
           <form onSubmit={handleAddTask} className="pt-2 flex flex-col sm:flex-row items-center gap-2">
             <input
               type="text"
-              placeholder="+ Nueva tarea o evento..."
+              placeholder="Nueva tarea"
               maxLength={200}
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}

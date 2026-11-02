@@ -138,7 +138,7 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
       >
         <Bell className="h-4.5 w-4.5" />
         {unread.length > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[11px] font-bold text-white flex items-center justify-center">
             {unread.length > 9 ? "9+" : unread.length}
           </span>
         )}
@@ -167,7 +167,7 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
                   >
                     <p className="text-sm font-medium text-zinc-100">{n.title}</p>
                     <p className="text-xs text-zinc-400 mt-0.5">{n.body}</p>
-                    <p className="text-[10px] text-zinc-500 mt-1">{timeAgo(n.scheduledFor)}</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">{timeAgo(n.scheduledFor)}</p>
                   </Link>
                 </li>
               ))

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
-import { isIsoDate, isValidTimeZone } from "@/lib/dates";
+import { isValidTimeZone } from "@/lib/dates";
 import { safeRedirectPath } from "@/lib/redirect";
 
 export type AuthFormState = { error?: string; notice?: string };
@@ -47,7 +47,6 @@ const signupSchema = credentials.extend({
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres.").max(200),
   firstName: z.string().trim().max(60),
   lastName: z.string().trim().max(60),
-  birthDate: z.string().refine((v) => v === "" || isIsoDate(v), "Fecha de nacimiento inválida."),
   timezone: z.string(),
 });
 
@@ -57,15 +56,14 @@ export async function signupAction(_prev: AuthFormState, formData: FormData): Pr
     password: formData.get("password"),
     firstName: field(formData, "firstName"),
     lastName: field(formData, "lastName"),
-    birthDate: field(formData, "birthDate"),
     timezone: field(formData, "timezone"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  const { email, password, firstName, lastName, birthDate, timezone } = parsed.data;
+  const { email, password, firstName, lastName, timezone } = parsed.data;
   const fullName = `${firstName} ${lastName}`.trim();
 
-  // Los datos iniciales (settings, hábitos de ejemplo, calendario "General") los
+  // Los datos iniciales (settings y calendario "General") los
   // crea el trigger handle_new_user con SECURITY DEFINER: así funciona aunque
   // la confirmación por email esté activada y todavía no haya sesión.
   const supabase = await createClient();
@@ -77,7 +75,6 @@ export async function signupAction(_prev: AuthFormState, formData: FormData): Pr
         full_name: fullName || undefined,
         first_name: firstName || undefined,
         last_name: lastName || undefined,
-        birth_date: birthDate || undefined,
         timezone: isValidTimeZone(timezone) ? timezone : undefined,
       },
     },

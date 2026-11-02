@@ -35,7 +35,7 @@ export async function updateMorningRitualAction(input: z.input<typeof ritualInpu
 }
 
 export async function getProfileAction(): Promise<
-  ActionResult<{ fullName: string; email: string; birthDate: string; targetAge: number }>
+  ActionResult<{ fullName: string; email: string; timezone: string | null }>
 > {
   const session = await requireUser();
   if (!session) return SESSION_EXPIRED;
@@ -45,8 +45,7 @@ export async function getProfileAction(): Promise<
     return ok({
       fullName: typeof meta.full_name === "string" ? meta.full_name : "",
       email: session.user.email ?? "",
-      birthDate: profile.birthDate,
-      targetAge: profile.targetAge,
+      timezone: profile.timezone,
     });
   } catch (err) {
     return dbFail("cargar tu perfil", err instanceof Error ? err : { message: String(err) });
@@ -58,7 +57,7 @@ export async function updateProfileAction(input: z.input<typeof profileInput>): 
   if (!parsed.ok) return parsed;
   const session = await requireUser();
   if (!session) return SESSION_EXPIRED;
-  const { fullName, birthDate, targetAge, timezone: tz } = parsed.data;
+  const { fullName, timezone: tz } = parsed.data;
 
   if (fullName !== undefined) {
     const { error } = await session.supabase.auth.updateUser({ data: { full_name: fullName } });
@@ -68,8 +67,6 @@ export async function updateProfileAction(input: z.input<typeof profileInput>): 
   const { error } = await session.supabase
     .from("user_settings")
     .update({
-      ...(birthDate !== undefined && { birth_date: birthDate }),
-      ...(targetAge !== undefined && { target_age: targetAge }),
       ...(tz !== undefined && { timezone: tz }),
       updated_at: new Date().toISOString(),
     })

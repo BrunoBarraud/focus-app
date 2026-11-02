@@ -3,7 +3,8 @@
 import * as React from "react";
 import { playTimerEndSound } from "@/lib/sound";
 import { useCountdown } from "@/lib/use-countdown";
-import { Play, Pause, RotateCcw, Flame, Volume2, VolumeX } from "lucide-react";
+import { useDailyFocus } from "@/lib/use-daily-focus";
+import { Play, Pause, RotateCcw, Timer, Volume2, VolumeX } from "lucide-react";
 
 export function EditablePomodoro() {
   const [initialSeconds, setInitialSeconds] = React.useState<number>(25 * 60);
@@ -11,11 +12,11 @@ export function EditablePomodoro() {
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [editInput, setEditInput] = React.useState<string>("25:00");
   const [soundEnabled, setSoundEnabled] = React.useState<boolean>(true);
-  const [sessionsCompleted, setSessionsCompleted] = React.useState<number>(0);
+  const { blocks: sessionsCompleted, addBlock } = useDailyFocus();
 
   const { timeLeft, isRunning, toggle, reset } = useCountdown(25 * 60, () => {
     if (soundEnabled) playTimerEndSound(880, 0.8);
-    if (mode === "focus" || mode === "deep") setSessionsCompleted((c) => c + 1);
+    if (mode === "focus" || mode === "deep") addBlock(initialSeconds / 60);
   });
 
   // Formatear segundos a MM:SS
@@ -84,25 +85,23 @@ export function EditablePomodoro() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4 relative z-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-rose-500/20 to-violet-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-inner">
-            <Flame className="h-5 w-5 fill-current animate-pulse" />
+          <div className="h-10 w-10 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+            <Timer className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              Focus Mode
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-full">
-                Hiperenfoque
-              </span>
-            </h2>
+            <h2 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">Enfoque</h2>
             <p className="text-xs text-zinc-400">
               {sessionsCompleted > 0
                 ? `${sessionsCompleted} bloque${sessionsCompleted > 1 ? "s" : ""} completado${sessionsCompleted > 1 ? "s" : ""} hoy`
-                : "Inicia tu primer bloque de concentración profunda"}
+                : "Todavía no terminaste ningún bloque hoy"}
             </p>
           </div>
         </div>
 
         <button
+          type="button"
+          aria-pressed={soundEnabled}
+          aria-label={soundEnabled ? "Silenciar" : "Activar sonido"}
           onClick={() => setSoundEnabled(!soundEnabled)}
           className="p-2 text-zinc-400 hover:text-white rounded-xl bg-white/[0.04] border border-white/[0.06] transition-colors cursor-pointer"
           title={soundEnabled ? "Silenciar" : "Activar sonido"}
@@ -133,7 +132,7 @@ export function EditablePomodoro() {
               : "text-zinc-400 hover:text-white"
           }`}
         >
-          50m Deep
+          50m
         </button>
         <button
           type="button"
@@ -144,7 +143,7 @@ export function EditablePomodoro() {
               : "text-zinc-400 hover:text-white"
           }`}
         >
-          5m Pausa
+          5m pausa
         </button>
         <button
           type="button"
@@ -155,7 +154,7 @@ export function EditablePomodoro() {
               : "text-zinc-400 hover:text-white"
           }`}
         >
-          15m Break
+          15m pausa
         </button>
       </div>
 
@@ -209,7 +208,7 @@ export function EditablePomodoro() {
                     setEditInput(formatTime(timeLeft));
                   }
                 }}
-                title={isRunning ? "Pausa para editar" : "Haz clic para editar la duración"}
+                title={isRunning ? "Pausá para cambiar la duración" : "Tocá para cambiar la duración"}
                 className={`font-mono text-5xl sm:text-6xl font-black tracking-tight select-none transition-all ${
                   isRunning
                     ? "text-white drop-shadow-[0_2px_16px_rgba(255,255,255,0.25)]"
@@ -220,8 +219,8 @@ export function EditablePomodoro() {
               </div>
             )}
 
-            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest mt-1">
-              {isRunning ? (mode.includes("break") ? "Descanso Activo" : "Enfoque Activo") : "Listo para arrancar"}
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mt-1">
+              {isRunning ? (mode.includes("break") ? "En descanso" : "Enfocado") : "Listo para arrancar"}
             </span>
           </div>
         </div>
@@ -240,11 +239,11 @@ export function EditablePomodoro() {
         >
           {isRunning ? (
             <>
-              <Pause className="h-4 w-4 fill-current" /> Pausar Sesión
+              <Pause className="h-4 w-4 fill-current" /> Pausar
             </>
           ) : (
             <>
-              <Play className="h-4 w-4 fill-current" /> Iniciar Sesión de Enfoque
+              <Play className="h-4 w-4 fill-current" /> Empezar
             </>
           )}
         </button>
@@ -254,6 +253,7 @@ export function EditablePomodoro() {
           onClick={handleReset}
           className="p-3.5 text-zinc-400 hover:text-white rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all cursor-pointer active:scale-95"
           title="Reiniciar temporizador"
+          aria-label="Reiniciar temporizador"
         >
           <RotateCcw className="h-4 w-4" />
         </button>
