@@ -309,6 +309,7 @@ export type Database = {
           attempts: number
           body: string
           created_at: string
+          dedupe_key: string | null
           event_id: string | null
           id: string
           kind: string
@@ -326,6 +327,7 @@ export type Database = {
           attempts?: number
           body: string
           created_at?: string
+          dedupe_key?: string | null
           event_id?: string | null
           id?: string
           kind: string
@@ -343,6 +345,7 @@ export type Database = {
           attempts?: number
           body?: string
           created_at?: string
+          dedupe_key?: string | null
           event_id?: string | null
           id?: string
           kind?: string
@@ -494,8 +497,13 @@ export type Database = {
           daily_pillar: string | null
           email: string | null
           energy_level: string | null
+          inactivity_reminder_hours: number | null
+          last_seen_at: string | null
           preferences: Json | null
           role: string | null
+          streak_best: number
+          streak_current: number
+          streak_last_day: string | null
           target_age: number | null
           timezone: string
           updated_at: string
@@ -508,8 +516,13 @@ export type Database = {
           daily_pillar?: string | null
           email?: string | null
           energy_level?: string | null
+          inactivity_reminder_hours?: number | null
+          last_seen_at?: string | null
           preferences?: Json | null
           role?: string | null
+          streak_best?: number
+          streak_current?: number
+          streak_last_day?: string | null
           target_age?: number | null
           timezone?: string
           updated_at?: string
@@ -522,8 +535,13 @@ export type Database = {
           daily_pillar?: string | null
           email?: string | null
           energy_level?: string | null
+          inactivity_reminder_hours?: number | null
+          last_seen_at?: string | null
           preferences?: Json | null
           role?: string | null
+          streak_best?: number
+          streak_current?: number
+          streak_last_day?: string | null
           target_age?: number | null
           timezone?: string
           updated_at?: string
@@ -544,6 +562,10 @@ export type Database = {
       register_push_subscription: {
         Args: { p_endpoint: string; p_auth_key: string; p_p256dh_key: string }
         Returns: undefined
+      }
+      touch_activity: {
+        Args: Record<PropertyKey, never>
+        Returns: { current_streak: number; best_streak: number }[]
       }
     }
     Enums: {

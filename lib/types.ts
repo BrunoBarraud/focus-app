@@ -93,6 +93,11 @@ export interface Goal {
   milestones: GoalMilestone[];
 }
 
+export interface StreakInfo {
+  current: number;
+  best: number;
+}
+
 export interface WheelArea {
   subject: string;
   score: number | null; // 1 - 10, null = todavía sin evaluar

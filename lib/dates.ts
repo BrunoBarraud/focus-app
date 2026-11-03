@@ -130,6 +130,11 @@ function zoneOffsetMs(date: Date, timeZone: string): number {
   return asUtc - (date.getTime() - date.getMilliseconds());
 }
 
+/** Hora del día (0-23) de un instante en una zona horaria. */
+export function hourInZone(date: Date, timeZone: string): number {
+  return partsInZone(date, timeZone).hour;
+}
+
 /** Convierte una fecha + hora de pared en `timeZone` al instante UTC real. */
 export function zonedTimeToUtc(isoDate: string, time: string, timeZone: string): Date {
   const [y, m, d] = isoDate.split("-").map(Number);

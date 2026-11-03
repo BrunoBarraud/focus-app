@@ -5,6 +5,7 @@ import type { Database, Tables } from "@/lib/database.types";
 import { addDays, DEFAULT_TIMEZONE, isoDateInZone, isValidTimeZone, zonedTimeToUtc } from "@/lib/dates";
 import { mapEvent } from "@/lib/mappers";
 import { completionKey, occursOn } from "@/lib/planner";
+import { INACTIVITY_OPTIONS, isInactivityHours, planInactivityNudges } from "./inactivity";
 
 type Admin = SupabaseClient<Database>;
 
@@ -86,6 +87,54 @@ export async function enqueueReminders(supabase: Admin, now: Date): Promise<numb
     .from("notifications")
     .upsert(toInsert, { onConflict: "event_id,kind,scheduled_for", ignoreDuplicates: true, count: "exact" });
   if (insertError) throw new Error(`No se pudieron encolar recordatorios: ${insertError.message}`);
+  return count ?? toInsert.length;
+}
+
+// ------------------------------------------------------------------------------
+// 1b. ENCOLAR: avisos por inactividad y racha en riesgo (idempotente)
+// ------------------------------------------------------------------------------
+
+export async function enqueueInactivityNudges(supabase: Admin, now: Date): Promise<number> {
+  const minHours = Math.min(...INACTIVITY_OPTIONS);
+  const { data: rows, error } = await supabase
+    .from("user_settings")
+    .select("user_id, timezone, last_seen_at, inactivity_reminder_hours, streak_current, streak_last_day")
+    .not("inactivity_reminder_hours", "is", null)
+    .not("last_seen_at", "is", null)
+    .lte("last_seen_at", new Date(now.getTime() - minHours * 3_600_000).toISOString());
+  if (error) throw new Error(`No se pudo leer la actividad: ${error.message}`);
+  if (!rows.length) return 0;
+
+  // Solo tiene sentido para quien puede recibir push: si no, quedaría solo en la
+  // campana in-app, que justamente no está mirando.
+  const { data: subs, error: subsError } = await supabase
+    .from("push_subscriptions")
+    .select("user_id")
+    .in("user_id", rows.map((r) => r.user_id));
+  if (subsError) throw new Error(`No se pudieron leer las suscripciones: ${subsError.message}`);
+  const withPush = new Set(subs.map((s) => s.user_id));
+
+  const toInsert: Database["public"]["Tables"]["notifications"]["Insert"][] = [];
+  for (const row of rows) {
+    if (!withPush.has(row.user_id) || !row.last_seen_at || !isInactivityHours(row.inactivity_reminder_hours)) continue;
+    toInsert.push(
+      ...planInactivityNudges({
+        userId: row.user_id,
+        now,
+        lastSeenAt: new Date(row.last_seen_at),
+        everyHours: row.inactivity_reminder_hours,
+        timeZone: isValidTimeZone(row.timezone) ? row.timezone : DEFAULT_TIMEZONE,
+        streakCurrent: row.streak_current,
+        streakLastDay: row.streak_last_day,
+      })
+    );
+  }
+
+  if (!toInsert.length) return 0;
+  const { error: insertError, count } = await supabase
+    .from("notifications")
+    .upsert(toInsert, { onConflict: "dedupe_key", ignoreDuplicates: true, count: "exact" });
+  if (insertError) throw new Error(`No se pudieron encolar los avisos de inactividad: ${insertError.message}`);
   return count ?? toInsert.length;
 }
 

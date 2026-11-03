@@ -7,6 +7,7 @@ import { Zap, User, LogIn, Settings } from "lucide-react";
 import { ProfileModal } from "./ProfileModal";
 import { LogoutButton } from "./LogoutButton";
 import { NotificationBell } from "./NotificationBell";
+import { StreakBadge } from "./StreakProvider";
 import type { Viewer } from "@/lib/types";
 
 export function Sidebar({ viewer }: { viewer: Viewer | null }) {
@@ -31,7 +32,12 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
               </span>
             </div>
           </Link>
-          {viewer && <NotificationBell align="left" />}
+          {viewer && (
+            <div className="flex items-center gap-1">
+              <StreakBadge />
+              <NotificationBell align="left" />
+            </div>
+          )}
         </div>
 
         {/* Main Nav Items */}

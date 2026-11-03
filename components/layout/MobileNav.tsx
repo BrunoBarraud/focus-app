@@ -7,6 +7,7 @@ import { NavigationItems } from "./NavigationItems";
 import { Menu, Zap, User, LogIn } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { NotificationBell } from "./NotificationBell";
+import { StreakBadge } from "./StreakProvider";
 import type { Viewer } from "@/lib/types";
 
 export function MobileNav({ viewer }: { viewer: Viewer | null }) {
@@ -26,6 +27,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
         </Link>
 
         <div className="flex items-center gap-1">
+          {viewer && <StreakBadge className="mr-1" />}
           {viewer && <NotificationBell />}
           <button
             onClick={() => setOpen(true)}
@@ -46,7 +48,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-base text-white">FOCUS</span>
-              <span className="text-[11px] text-zinc-400">Productividad</span>
+              <span className="text-[11px] text-zinc-400">Hábitos · Planificación · Foco</span>
             </div>
           </div>
 

@@ -12,6 +12,7 @@ import {
   mapRitual,
 } from "./mappers";
 import { completionKey } from "./planner";
+import { isInactivityHours, type InactivityHours } from "./notifications/inactivity";
 import type {
   AppNotification,
   Dream,
@@ -186,6 +187,27 @@ export async function getProfile() {
     .maybeSingle();
   if (error) throw new Error(`Error al cargar perfil: ${error.message}`);
   return { timezone: row?.timezone ?? null };
+}
+
+/** Cada cuántas horas avisar si no se usa la app (null = nunca). */
+export async function getInactivityReminder(): Promise<InactivityHours | null> {
+  const { supabase, user } = await requireSession();
+  const { data: row, error } = await supabase
+    .from("user_settings")
+    .select("inactivity_reminder_hours")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) {
+    // 42703 = la columna no existe: falta correr la migración de la racha.
+    // No se rompe todo el dashboard por eso, pero queda avisado en el log.
+    if (error.code === "42703") {
+      console.error("Falta correr supabase/migrations/20261102140000_racha_y_aviso_inactividad.sql");
+      return null;
+    }
+    throw new Error(`Error al cargar el recordatorio: ${error.message}`);
+  }
+  const hours = row?.inactivity_reminder_hours;
+  return isInactivityHours(hours) ? hours : null;
 }
 
 /** Admin: todos los tickets. Usuario: solo los propios (RLS hace cumplir lo mismo). */

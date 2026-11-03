@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { SESSION_EXPIRED, dbFail, ok, parse, requireUser } from "@/lib/action-helpers";
 import { getProfile } from "@/lib/data";
-import type { ActionResult } from "@/lib/types";
-import { profileInput, ritualInput, timezone } from "@/lib/validation";
+import type { ActionResult, StreakInfo } from "@/lib/types";
+import { inactivityHours, profileInput, ritualInput, timezone } from "@/lib/validation";
 
 // Solo se escriben columnas permitidas explícitamente: antes se hacía
 // `...data` con el input del cliente y se podía escribir cualquier columna
@@ -93,5 +93,34 @@ export async function syncTimezoneAction(tz: string): Promise<ActionResult> {
     .eq("user_id", session.user.id)
     .neq("timezone", parsed.data);
   if (error) return dbFail("guardar tu zona horaria", error);
+  return ok();
+}
+
+/**
+ * Registra que el usuario está usando la app (al abrirla y cada tanto mientras
+ * la tiene en pantalla) y devuelve su racha de días seguidos.
+ */
+export async function touchActivityAction(): Promise<ActionResult<StreakInfo>> {
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+
+  const { data, error } = await session.supabase.rpc("touch_activity");
+  if (error) return dbFail("registrar tu actividad", error);
+  const row = data?.[0];
+  return ok({ current: row?.current_streak ?? 0, best: row?.best_streak ?? 0 });
+}
+
+/** Cada cuántas horas avisar si no se usa la app (1, 2, 5, 7 o 12). null = no avisar. */
+export async function setInactivityReminderAction(hours: number | null): Promise<ActionResult> {
+  const parsed = parse(inactivityHours, hours);
+  if (!parsed.ok) return parsed;
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+
+  const { error } = await session.supabase
+    .from("user_settings")
+    .update({ inactivity_reminder_hours: parsed.data, updated_at: new Date().toISOString() })
+    .eq("user_id", session.user.id);
+  if (error) return dbFail("guardar el recordatorio", error);
   return ok();
 }

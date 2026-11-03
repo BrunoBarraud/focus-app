@@ -8,6 +8,8 @@ import { EditablePomodoro } from "./EditablePomodoro";
 import { InlineMorningRitual } from "./InlineMorningRitual";
 import { FluidGoalsList } from "./FluidGoalsList";
 import { PushNotificationButton } from "./PushNotificationButton";
+import { StreakReminder } from "./StreakReminder";
+import type { InactivityHours } from "@/lib/notifications/inactivity";
 import { CalendarDays } from "lucide-react";
 import { parseIsoDate } from "@/lib/dates";
 import { useToday } from "@/lib/use-today";
@@ -24,6 +26,7 @@ interface DashboardInteractiveProps {
   initialPlanner: PlannerData;
   initialGoals: Goal[];
   initialRitual: MorningRitual;
+  initialInactivityHours: InactivityHours | null;
   userName: string;
 }
 
@@ -32,6 +35,7 @@ export function DashboardInteractive({
   initialPlanner,
   initialGoals,
   initialRitual,
+  initialInactivityHours,
   userName,
 }: DashboardInteractiveProps) {
   // Saludo según la hora LOCAL del usuario (el servidor corre en UTC).
@@ -54,7 +58,8 @@ export function DashboardInteractive({
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto sm:justify-end">
+          <StreakReminder initialHours={initialInactivityHours} />
           <PushNotificationButton />
         </div>
       </div>

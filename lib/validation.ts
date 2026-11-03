@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isIsoDate, isTime, isValidTimeZone } from "./dates";
+import { isInactivityHours } from "./notifications/inactivity";
 
 // Las server actions son endpoints POST públicos: los tipos de TypeScript no
 // existen en runtime, así que todo input se valida acá.
@@ -83,6 +84,12 @@ export const profileInput = z.object({
   fullName: z.string().trim().min(1).max(120).optional(),
   timezone: timezone.optional(),
 });
+
+/** Cada cuántas horas avisar si no se usa la app; null = no avisar. */
+export const inactivityHours = z
+  .number()
+  .refine(isInactivityHours, "Frecuencia inválida.")
+  .nullable();
 
 export const feedbackInput = z.object({
   type: z.enum(["suggestion", "improvement", "bug", "question", "other"]),

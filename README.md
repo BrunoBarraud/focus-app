@@ -42,6 +42,15 @@ Patrón outbox con la tabla `notifications`, que también funciona como bandeja 
 2. Reclama las notificaciones vencidas con `claim_due_notifications()` (`FOR UPDATE SKIP LOCKED`), las envía por Web Push con reintentos y borra las suscripciones que responden 404 o 410.
 3. La campana in-app escucha la tabla por Supabase Realtime. El estado leído/no leído vive en la base.
 
+### Racha de uso y avisos por inactividad
+
+- Al abrir la app, al volver a la pestaña y cada 10 minutos con la app visible, el cliente llama a `touch_activity()`, que guarda `last_seen_at` y actualiza la racha de días seguidos (con el día local del usuario).
+- Desde el dashboard cada usuario elige si quiere un aviso cuando pasan 1, 2, 5, 7 o 12 horas sin usar la app (`user_settings.inactivity_reminder_hours`). El aviso se repite en cada tramo mientras no vuelva.
+- A las 20 h se avisa si la racha (de 2 días o más) se corta ese día.
+- Nunca se manda nada entre las 22 y las 9 h (hora local). La lógica está en `lib/notifications/inactivity.ts`, con tests.
+
+El build usa webpack (`next build --webpack`) porque Serwist genera el service worker con un plugin de webpack: con Turbopack no se generaba `public/sw.js` y las notificaciones push no funcionaban en producción.
+
 Vercel Hobby solo permite crons diarios. Para recordatorios reales, programá `/api/cron` cada minuto con `pg_cron` + `pg_net` (hay un ejemplo al final de la migración).
 
 ### Agregar un administrador

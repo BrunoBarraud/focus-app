@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { NotificationsProvider } from "./NotificationBell";
+import { StreakProvider } from "./StreakProvider";
 import { ToastProvider } from "@/components/ui/toast";
 import type { Viewer } from "@/lib/types";
 
@@ -52,7 +53,13 @@ export function AppShell({ children, viewer }: { children: React.ReactNode; view
 
   return (
     <ToastProvider>
-      {viewer ? <NotificationsProvider userId={viewer.id}>{shell}</NotificationsProvider> : shell}
+      {viewer ? (
+        <NotificationsProvider userId={viewer.id}>
+          <StreakProvider>{shell}</StreakProvider>
+        </NotificationsProvider>
+      ) : (
+        shell
+      )}
     </ToastProvider>
   );
 }
