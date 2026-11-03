@@ -22,7 +22,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
             <Zap className="h-4 w-4 fill-current" />
           </div>
           <span className="font-bold tracking-tight text-base text-white">
-            FOCUS
+            Focus
           </span>
         </Link>
 
@@ -47,7 +47,7 @@ export function MobileNav({ viewer }: { viewer: Viewer | null }) {
               <Zap className="h-4 w-4 fill-current" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-base text-white">FOCUS</span>
+              <span className="font-bold text-base text-white">Focus</span>
               <span className="text-[11px] text-zinc-400">Hábitos · Planificación · Foco</span>
             </div>
           </div>

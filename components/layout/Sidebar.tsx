@@ -18,22 +18,19 @@ export function Sidebar({ viewer }: { viewer: Viewer | null }) {
     <>
       <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-6 border-b border-zinc-800/80">
-          <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
+        {/* El subtítulo largo, la racha y la campana no entraban juntos en 256 px:
+            el texto se partía en tres líneas y se salía del encabezado. */}
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-5 border-b border-zinc-800/80">
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5 group">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 text-white shadow-md shadow-violet-600/30 group-hover:scale-105 transition-transform">
               <Zap className="h-5 w-5 fill-current" />
             </div>
-            <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-white group-hover:text-violet-400 transition-colors">
-                FOCUS
-              </span>
-              <span className="text-[11px] text-zinc-400 tracking-wider uppercase font-medium">
-                Hábitos · Planificación · Foco
-              </span>
-            </div>
+            <span className="font-bold tracking-tight text-lg text-white group-hover:text-violet-400 transition-colors">
+              Focus
+            </span>
           </Link>
           {viewer && (
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <StreakBadge />
               <NotificationBell align="left" />
             </div>
