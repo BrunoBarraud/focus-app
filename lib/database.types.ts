@@ -17,6 +17,7 @@ export type Database = {
       calendar_events: {
         Row: {
           calendar_id: string
+          color: string | null
           created_at: string
           date: string | null
           days_of_week: string[] | null
@@ -35,6 +36,7 @@ export type Database = {
         }
         Insert: {
           calendar_id: string
+          color?: string | null
           created_at?: string
           date?: string | null
           days_of_week?: string[] | null
@@ -53,6 +55,7 @@ export type Database = {
         }
         Update: {
           calendar_id?: string
+          color?: string | null
           created_at?: string
           date?: string | null
           days_of_week?: string[] | null
@@ -83,22 +86,34 @@ export type Database = {
         Row: {
           color: string
           created_at: string
+          day_end: string
           id: string
           name: string
+          slot_gap_minutes: number
+          slot_minutes: number
+          slot_start: string
           user_id: string
         }
         Insert: {
           color?: string
           created_at?: string
+          day_end?: string
           id?: string
           name: string
+          slot_gap_minutes?: number
+          slot_minutes?: number
+          slot_start?: string
           user_id: string
         }
         Update: {
           color?: string
           created_at?: string
+          day_end?: string
           id?: string
           name?: string
+          slot_gap_minutes?: number
+          slot_minutes?: number
+          slot_start?: string
           user_id?: string
         }
         Relationships: []

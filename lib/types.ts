@@ -31,10 +31,19 @@ export interface HabitMonthView extends Habit {
   bestStreak: number;
 }
 
+/** Bloques horarios de un calendario (estilo grilla de facultad). */
+export interface CalendarSchedule {
+  start: string; // HH:MM del primer bloque
+  slotMinutes: number;
+  gapMinutes: number;
+  end: string; // HH:MM: el último bloque tiene que terminar antes
+}
+
 export interface Calendar {
   id: string;
   name: string;
   color: string;
+  schedule: CalendarSchedule;
 }
 
 export type WeekDay = "L" | "M" | "X" | "J" | "V" | "S" | "D";
@@ -59,6 +68,8 @@ export interface PlannerEvent {
   priority: TaskPriority;
   estimatedMinutes?: number;
   tag: string;
+  /** Color en la grilla de horario (clave de TIMETABLE_COLORS). */
+  color?: string;
 }
 
 /** Ocurrencia concreta de un evento en una fecha. */

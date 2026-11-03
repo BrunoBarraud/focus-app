@@ -5,11 +5,12 @@ import type { PlannerData, PlannerOccurrence, TaskPriority, WeekDay } from "@/li
 import { monthDates, mondayOffset, parseIsoDate, weekDates, weekDayOf } from "@/lib/dates";
 import { useToday } from "@/lib/use-today";
 import { isTempId, usePlanner } from "./usePlanner";
+import { WeeklyTimetable } from "./WeeklyTimetable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { Calendar, CalendarDays, Clock, Plus, CheckCircle2, Circle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, CalendarDays, Clock, Plus, CheckCircle2, Circle, Trash2, ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playTaskCompletedSound } from "@/lib/sound";
 
@@ -26,6 +27,23 @@ const WEEK_DAYS_BASE: { day: WeekDay; label: string; full: string; dayIndex: num
   { day: "S", label: "S", full: "Sábado", dayIndex: 6 },
   { day: "D", label: "D", full: "Domingo", dayIndex: 0 },
 ];
+
+type ViewMode = "week" | "month" | "schedule";
+const VIEW_KEY = "focus:planner-view";
+
+const VIEW_COPY: Record<ViewMode, { eyebrow: string; title: string; description: string }> = {
+  week: { eyebrow: "Lunes a domingo", title: "Planificador semanal", description: "Tus tareas de la semana, día por día." },
+  month: {
+    eyebrow: "Mes completo",
+    title: "Planificador mensual",
+    description: "Elegí un día del mes para ver sus tareas o agregar una nueva.",
+  },
+  schedule: {
+    eyebrow: "Horario fijo",
+    title: "Horario semanal",
+    description: "Tus clases y horarios fijos en bloques, como la grilla de la facultad.",
+  },
+};
 
 const MONTH_NAMES_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -53,8 +71,26 @@ function PlannerSkeleton() {
 }
 
 function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; today: string }) {
-  const { occurrences, toggle, addTask, deleteTask, ensureRange } = usePlanner(initialData);
-  const [viewMode, setViewMode] = React.useState<"week" | "month">("week");
+  const planner = usePlanner(initialData);
+  const { occurrences, toggle, addTask, deleteTask, ensureRange } = planner;
+  // Se recuerda la última vista elegida en este navegador (este componente
+  // solo se dibuja en el cliente, así que no hay problema de hidratación).
+  const [viewMode, setViewModeState] = React.useState<ViewMode>(() => {
+    try {
+      const saved = window.localStorage.getItem(VIEW_KEY);
+      return saved === "week" || saved === "month" || saved === "schedule" ? saved : "week";
+    } catch {
+      return "week";
+    }
+  });
+  const setViewMode = (mode: ViewMode) => {
+    setViewModeState(mode);
+    try {
+      window.localStorage.setItem(VIEW_KEY, mode);
+    } catch {
+      // Sin almacenamiento: la vista no se recuerda.
+    }
+  };
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
@@ -212,24 +248,13 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-violet-400 uppercase tracking-widest mb-1">
-            {viewMode === "week" ? (
-              <>
-                <Calendar className="h-3.5 w-3.5" /> Lunes a domingo
-              </>
-            ) : (
-              <>
-                <CalendarDays className="h-3.5 w-3.5" /> Mes completo
-              </>
-            )}
+            {viewMode === "week" && <Calendar className="h-3.5 w-3.5" />}
+            {viewMode === "month" && <CalendarDays className="h-3.5 w-3.5" />}
+            {viewMode === "schedule" && <LayoutGrid className="h-3.5 w-3.5" />}
+            {VIEW_COPY[viewMode].eyebrow}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Planificador {viewMode === "week" ? "semanal" : "mensual"}
-          </h1>
-          <p className="text-xs sm:text-sm text-zinc-400">
-            {viewMode === "week"
-              ? "Tus tareas de la semana, día por día."
-              : "Elegí un día del mes para ver sus tareas o agregar una nueva."}
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">{VIEW_COPY[viewMode].title}</h1>
+          <p className="text-xs sm:text-sm text-zinc-400">{VIEW_COPY[viewMode].description}</p>
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
@@ -257,19 +282,43 @@ function WeeklyKanbanBoard({ initialData, today }: { initialData: PlannerData; t
             >
               Mensual
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("schedule")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                viewMode === "schedule"
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+            >
+              Horario
+            </button>
           </div>
 
-          <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
-            <span className="text-zinc-400">Progreso: </span>
-            <strong className="text-violet-400 font-bold">
-              {completedTasks}/{totalTasks} completadas
-            </strong>
-          </div>
+          {viewMode !== "schedule" && (
+            <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300">
+              <span className="text-zinc-400">Progreso: </span>
+              <strong className="text-violet-400 font-bold">
+                {completedTasks}/{totalTasks} completadas
+              </strong>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 1. VISTA SEMANAL (KANBAN) */}
-      {viewMode === "week" ? (
+      {/* 0. HORARIO POR BLOQUES */}
+      {viewMode === "schedule" ? (
+        <WeeklyTimetable
+          today={today}
+          events={planner.events}
+          calendars={planner.calendars}
+          addTask={planner.addTask}
+          updateTask={planner.updateTask}
+          deleteTask={planner.deleteTask}
+          addCalendar={planner.addCalendar}
+          updateCalendarSchedule={planner.updateCalendarSchedule}
+        />
+      ) : /* 1. VISTA SEMANAL (KANBAN) */ viewMode === "week" ? (
         <div className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x min-h-[420px] animate-in fade-in duration-200">
           {weekColumns.map((col) => {
             const columnTasks = occurrences(col.date);

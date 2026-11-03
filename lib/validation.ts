@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTime, isValidTimeZone } from "./dates";
 import { isInactivityHours } from "./notifications/inactivity";
+import { buildSlots, isTimetableColor, toMinutes } from "./timetable";
 
 // Las server actions son endpoints POST públicos: los tipos de TypeScript no
 // existen en runtime, así que todo input se valida acá.
@@ -44,11 +45,26 @@ export const taskInput = z
     priority,
     estimatedMinutes: z.number().int().min(5).max(24 * 60).optional(),
     tag: z.string().trim().max(40).optional(),
+    // undefined = no tocar; null = color automático.
+    color: z.string().refine(isTimetableColor, "Color inválido.").nullable().optional(),
   })
   .refine((t) => (t.recurring ? (t.daysOfWeek?.length ?? 0) > 0 : Boolean(t.date)), {
     message: "Una tarea semanal necesita días; una puntual necesita fecha.",
+  })
+  .refine((t) => !t.startTime || !t.endTime || toMinutes(t.endTime) > toMinutes(t.startTime), {
+    message: "La hora de fin tiene que ser después de la de inicio.",
   });
 export type TaskInput = z.input<typeof taskInput>;
+
+export const calendarScheduleInput = z
+  .object({
+    start: time,
+    slotMinutes: z.number().int().min(10, "Cada bloque dura al menos 10 minutos.").max(240),
+    gapMinutes: z.number().int().min(0).max(60),
+    end: time,
+  })
+  .refine((s) => toMinutes(s.end) > toMinutes(s.start), { message: "El día tiene que terminar después del primer bloque." })
+  .refine((s) => buildSlots(s).length > 0, { message: "Con esa configuración no entra ningún bloque." });
 
 export const calendarInput = z.object({
   name: title(60),

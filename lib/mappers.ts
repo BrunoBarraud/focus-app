@@ -1,4 +1,5 @@
 import { CALENDAR_COLORS } from "./calendar-colors";
+import { DEFAULT_SCHEDULE, isTimetableColor } from "./timetable";
 import type { Tables } from "./database.types";
 import type {
   Calendar,
@@ -71,6 +72,7 @@ export function mapEvent(row: Tables<"calendar_events">): PlannerEvent {
     priority: oneOf<TaskPriority>(row.priority, PRIORITIES, "medium"),
     estimatedMinutes: row.estimated_minutes ?? undefined,
     tag: row.tag ?? "General",
+    color: isTimetableColor(row.color) ? row.color : undefined,
   };
 }
 
@@ -83,6 +85,12 @@ export function mapCalendar(row: Tables<"calendars">, index: number): Calendar {
     color: (CALENDAR_COLORS as readonly string[]).includes(row.color)
       ? row.color
       : CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+    schedule: {
+      start: hhmm(row.slot_start) ?? DEFAULT_SCHEDULE.start,
+      slotMinutes: row.slot_minutes ?? DEFAULT_SCHEDULE.slotMinutes,
+      gapMinutes: row.slot_gap_minutes ?? DEFAULT_SCHEDULE.gapMinutes,
+      end: hhmm(row.day_end) ?? DEFAULT_SCHEDULE.end,
+    },
   };
 }
 

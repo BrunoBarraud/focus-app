@@ -82,6 +82,16 @@ export async function subscribeToPush(): Promise<{ ok: true } | { ok: false; err
     return { ok: true };
   } catch (err) {
     console.error("Error al suscribir a push:", err);
+    // AbortError = el navegador no pudo hablar con su servicio de push (FCM en
+    // Chrome). Pasa sobre todo en Brave, que lo trae apagado, o con una red,
+    // VPN o bloqueador que corta fcm.googleapis.com.
+    if (err instanceof DOMException && err.name === "AbortError") {
+      return {
+        ok: false,
+        error:
+          "Tu navegador no pudo conectarse a su servicio de notificaciones. Si usás Brave, activá “Usar los servicios de Google para mensajes push” en Privacidad. Si no, probá sin VPN ni bloqueadores, o desde el celular.",
+      };
+    }
     return { ok: false, error: "No se pudieron activar las notificaciones en este dispositivo." };
   }
 }

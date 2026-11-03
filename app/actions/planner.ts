@@ -7,8 +7,8 @@ import { getPlannerData } from "@/lib/data";
 import { weekDayOf } from "@/lib/dates";
 import { CALENDAR_COLORS } from "@/lib/calendar-colors";
 import { mapEvent } from "@/lib/mappers";
-import type { ActionResult, PlannerData, PlannerEvent } from "@/lib/types";
-import { calendarInput, isoDate, taskInput, type TaskInput, uuid } from "@/lib/validation";
+import type { ActionResult, CalendarSchedule, PlannerData, PlannerEvent } from "@/lib/types";
+import { calendarInput, calendarScheduleInput, isoDate, taskInput, type TaskInput, uuid } from "@/lib/validation";
 
 type Supabase = NonNullable<Awaited<ReturnType<typeof requireUser>>>["supabase"];
 
@@ -55,6 +55,25 @@ async function resolveCalendarId(
   return { id: created.id };
 }
 
+/** Columnas de calendar_events a partir del input validado (alta y edición). */
+function eventFields(task: z.output<typeof taskInput>) {
+  return {
+    title: task.title,
+    description: task.description ?? null,
+    is_recurring: task.recurring,
+    date: task.recurring ? null : task.date!,
+    days_of_week: task.recurring ? task.daysOfWeek! : [weekDayOf(task.date!)],
+    start_time: task.startTime ?? null,
+    end_time: task.endTime ?? null,
+    priority: task.priority,
+    estimated_minutes: task.estimatedMinutes ?? null,
+    tag: task.tag || "General",
+    // Solo se manda si viene: así crear tareas comunes no depende de la
+    // migración del horario por bloques.
+    ...(task.color !== undefined && { color: task.color }),
+  };
+}
+
 export async function addTaskAction(input: TaskInput): Promise<ActionResult<PlannerEvent>> {
   const parsed = parse(taskInput, input);
   if (!parsed.ok) return parsed;
@@ -67,21 +86,7 @@ export async function addTaskAction(input: TaskInput): Promise<ActionResult<Plan
 
   const { data, error } = await session.supabase
     .from("calendar_events")
-    .insert({
-      user_id: session.user.id,
-      calendar_id: calendar.id,
-      title: task.title,
-      description: task.description ?? null,
-      is_recurring: task.recurring,
-      date: task.recurring ? null : task.date!,
-      days_of_week: task.recurring ? task.daysOfWeek! : [weekDayOf(task.date!)],
-      start_time: task.startTime ?? null,
-      end_time: task.endTime ?? null,
-      priority: task.priority,
-      estimated_minutes: task.estimatedMinutes ?? null,
-      tag: task.tag || "General",
-      status: "pending",
-    })
+    .insert({ user_id: session.user.id, calendar_id: calendar.id, status: "pending", ...eventFields(task) })
     .select("*")
     .single();
   if (error) return dbFail("crear la tarea", error);
@@ -138,6 +143,63 @@ export async function deleteTaskAction(eventId: string): Promise<ActionResult> {
     .select("id");
   if (error) return dbFail("eliminar la tarea", error);
   if (!data.length) return fail("La tarea ya no existe.");
+
+  revalidatePlanner();
+  return ok();
+}
+
+/** Edita una tarea o clase existente (título, días, horario, color…). */
+export async function updateTaskAction(eventId: string, input: TaskInput): Promise<ActionResult<PlannerEvent>> {
+  const id = parse(uuid, eventId);
+  if (!id.ok) return id;
+  const parsed = parse(taskInput, input);
+  if (!parsed.ok) return parsed;
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+  const task = parsed.data;
+
+  const calendar = await resolveCalendarId(session.supabase, session.user.id, task.calendarId);
+  if ("error" in calendar) return dbFail("preparar el calendario", calendar.error);
+
+  const { data, error } = await session.supabase
+    .from("calendar_events")
+    .update({ calendar_id: calendar.id, ...eventFields(task) })
+    .eq("id", id.data)
+    .eq("user_id", session.user.id)
+    .select("*")
+    .maybeSingle();
+  if (error) return dbFail("guardar los cambios", error);
+  if (!data) return fail("La tarea ya no existe.");
+
+  revalidatePlanner();
+  return ok(mapEvent(data));
+}
+
+/** Bloques horarios de un calendario: primer bloque, duración, corte y fin del día. */
+export async function updateCalendarScheduleAction(
+  calendarId: string,
+  schedule: CalendarSchedule
+): Promise<ActionResult> {
+  const id = parse(uuid, calendarId);
+  if (!id.ok) return id;
+  const parsed = parse(calendarScheduleInput, schedule);
+  if (!parsed.ok) return parsed;
+  const session = await requireUser();
+  if (!session) return SESSION_EXPIRED;
+
+  const { data, error } = await session.supabase
+    .from("calendars")
+    .update({
+      slot_start: parsed.data.start,
+      slot_minutes: parsed.data.slotMinutes,
+      slot_gap_minutes: parsed.data.gapMinutes,
+      day_end: parsed.data.end,
+    })
+    .eq("id", id.data)
+    .eq("user_id", session.user.id)
+    .select("id");
+  if (error) return dbFail("guardar los bloques horarios", error);
+  if (!data.length) return fail("El calendario ya no existe.");
 
   revalidatePlanner();
   return ok();

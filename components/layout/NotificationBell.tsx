@@ -57,11 +57,14 @@ export function NotificationsProvider({ userId, children }: { userId: string; ch
   );
 
   React.useEffect(() => {
-    // Un fallo transitorio se ignora: se reintenta en el próximo ciclo.
+    // Un fallo transitorio (incluido un corte de red) se ignora: se reintenta
+    // en el próximo ciclo.
     const refresh = () =>
-      getNotificationsAction().then((res) => {
-        if (res.ok) applyFetched(res.data);
-      });
+      getNotificationsAction()
+        .then((res) => {
+          if (res.ok) applyFetched(res.data);
+        })
+        .catch(() => {});
     refresh();
 
     const supabase = createClient();

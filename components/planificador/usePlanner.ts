@@ -7,10 +7,13 @@ import {
   deleteTaskAction,
   getPlannerRangeAction,
   setTaskCompletionAction,
+  updateCalendarScheduleAction,
+  updateTaskAction,
 } from "@/app/actions/planner";
 import { useToast } from "@/components/ui/toast";
 import { completionKey, occurrencesOn } from "@/lib/planner";
-import type { Calendar, PlannerData, PlannerEvent, PlannerOccurrence } from "@/lib/types";
+import type { Calendar, CalendarSchedule, PlannerData, PlannerEvent, PlannerOccurrence } from "@/lib/types";
+import { DEFAULT_SCHEDULE } from "@/lib/timetable";
 import type { TaskInput } from "@/lib/validation";
 import { useServerState } from "@/lib/client-hooks";
 
@@ -74,6 +77,8 @@ export function usePlanner(initial: PlannerData) {
       date: input.recurring ? undefined : input.date,
       daysOfWeek: input.daysOfWeek ?? [],
       startTime: input.startTime,
+      endTime: input.endTime,
+      color: input.color ?? undefined,
       priority: input.priority,
       estimatedMinutes: input.estimatedMinutes,
       tag: input.tag || "General",
@@ -108,14 +113,60 @@ export function usePlanner(initial: PlannerData) {
     }
   };
 
-  const addCalendar = async (name: string, color: string): Promise<boolean> => {
+  /** Crea un calendario y devuelve su id (o null si falló). */
+  const addCalendar = async (name: string, color: string): Promise<string | null> => {
     const res = await addCalendarAction(name, color);
     if (!res.ok) {
       toast.error(res.error);
-      return false;
+      return null;
     }
-    setCalendars((prev) => [...prev, { id: res.data.id, name, color }]);
-    return true;
+    setCalendars((prev) => [...prev, { id: res.data.id, name, color, schedule: DEFAULT_SCHEDULE }]);
+    return res.data.id;
+  };
+
+  /** Edita una tarea o clase. Optimista: si falla, vuelve a la versión anterior. */
+  const updateTask = async (eventId: string, input: TaskInput): Promise<boolean> => {
+    const previous = events.find((e) => e.id === eventId);
+    if (!previous || isTempId(eventId)) return false;
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId
+          ? {
+              ...e,
+              calendarId: input.calendarId ?? e.calendarId,
+              title: input.title.trim(),
+              description: input.description,
+              recurring: input.recurring,
+              date: input.recurring ? undefined : input.date,
+              daysOfWeek: input.daysOfWeek ?? e.daysOfWeek,
+              startTime: input.startTime,
+              endTime: input.endTime,
+              priority: input.priority,
+              tag: input.tag || "General",
+              color: input.color ?? undefined,
+            }
+          : e
+      )
+    );
+    const res = await updateTaskAction(eventId, input);
+    if (res.ok) {
+      setEvents((prev) => prev.map((e) => (e.id === eventId ? res.data : e)));
+      return true;
+    }
+    setEvents((prev) => prev.map((e) => (e.id === eventId ? previous : e)));
+    toast.error(res.error);
+    return false;
+  };
+
+  const updateCalendarSchedule = async (calendarId: string, schedule: CalendarSchedule): Promise<boolean> => {
+    const previous = calendars.find((c) => c.id === calendarId);
+    if (!previous) return false;
+    setCalendars((prev) => prev.map((c) => (c.id === calendarId ? { ...c, schedule } : c)));
+    const res = await updateCalendarScheduleAction(calendarId, schedule);
+    if (res.ok) return true;
+    setCalendars((prev) => prev.map((c) => (c.id === calendarId ? previous : c)));
+    toast.error(res.error);
+    return false;
   };
 
   /** Trae los completados de un rango que todavía no se cargó (navegación de meses). */
@@ -138,5 +189,16 @@ export function usePlanner(initial: PlannerData) {
     [toast, setCompletions]
   );
 
-  return { events, calendars, occurrences, toggle, addTask, deleteTask, addCalendar, ensureRange };
+  return {
+    events,
+    calendars,
+    occurrences,
+    toggle,
+    addTask,
+    updateTask,
+    deleteTask,
+    addCalendar,
+    updateCalendarSchedule,
+    ensureRange,
+  };
 }

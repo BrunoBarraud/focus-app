@@ -27,10 +27,16 @@ export function SessionBootstrap() {
       const now = Date.now();
       if (now - lastTouch < MIN_TOUCH_GAP_MS) return;
       lastTouch = now;
-      touchActivityAction().then((res) => {
-        if (res.ok) setStreak?.(res.data);
-        else console.warn("No se pudo registrar la actividad:", res.error);
-      });
+      touchActivityAction()
+        .then((res) => {
+          if (res.ok) setStreak?.(res.data);
+          else console.warn("No se pudo registrar la actividad:", res.error);
+        })
+        // Sin conexión (o con el servidor reiniciándose) la llamada falla: se
+        // reintenta en el próximo ciclo en vez de romper la página.
+        .catch(() => {
+          lastTouch = 0;
+        });
     };
 
     // La zona horaria va primero: la racha se calcula con el día local.
@@ -39,6 +45,7 @@ export function SessionBootstrap() {
       .then((res) => {
         if (res && !res.ok) console.warn("No se pudo sincronizar la zona horaria:", res.error);
       })
+      .catch(() => {})
       .finally(touch);
 
     const interval = setInterval(touch, HEARTBEAT_MS);
@@ -58,9 +65,11 @@ export function SessionBootstrap() {
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type !== "PUSH_SUBSCRIPTION_CHANGED") return;
       if (Notification.permission !== "granted") return;
-      subscribeToPush().then((res) => {
-        if (!res.ok) console.warn("No se pudo renovar la suscripción push:", res.error);
-      });
+      subscribeToPush()
+        .then((res) => {
+          if (!res.ok) console.warn("No se pudo renovar la suscripción push:", res.error);
+        })
+        .catch(() => {});
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
