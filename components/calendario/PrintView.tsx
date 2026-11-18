@@ -9,6 +9,8 @@ import { occurrencesInRange, weekdayKey } from "@/lib/recurrence";
 import { assignLanes, buildHourSlots, buildSlots, rowOffset, toMinutes, type TimeSlot } from "@/lib/timetable";
 import type { Calendar, PlannerData, PlannerOccurrence } from "@/lib/types";
 import { useToday } from "@/lib/use-today";
+import { WEEK_DAYS } from "@/lib/dates";
+import type { WeekDay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type PrintMode = "week" | "month";
@@ -46,7 +48,8 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
   const [grid, setGrid] = React.useState("auto");
   const [showDates, setShowDates] = React.useState(true);
   const [includeTasks, setIncludeTasks] = React.useState(true);
-  const [weekend, setWeekend] = React.useState<boolean | null>(null);
+  // null = automático (lunes a viernes, más sábado/domingo si tienen algo).
+  const [chosenDays, setChosenDays] = React.useState<WeekDay[] | null>(null);
   const [orientation, setOrientation] = React.useState<Orientation>("landscape");
   const [fill, setFill] = React.useState<Fill>("solid");
   const [customTitle, setCustomTitle] = React.useState("");
@@ -64,7 +67,13 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
     const k = weekdayKey(o.occurrenceDate);
     return k === "S" || k === "D" || o.occurrenceEndDate !== o.occurrenceDate;
   });
-  const withWeekend = weekend ?? (mode === "month" || hasWeekendItems);
+  const activeDays: WeekDay[] =
+    chosenDays ?? (mode === "month" || hasWeekendItems ? WEEK_DAYS : WEEK_DAYS.slice(0, 5));
+  const toggleDay = (day: WeekDay) => {
+    const next = activeDays.includes(day) ? activeDays.filter((d) => d !== day) : [...activeDays, day];
+    if (next.length) setChosenDays(WEEK_DAYS.filter((d) => next.includes(d)));
+  };
+  const sameDays = (list: WeekDay[]) => list.length === activeDays.length && list.every((d) => activeDays.includes(d));
 
   // Grilla de la semana: por horas o por los bloques de un calendario.
   const timed = occurrences.filter((o) => !o.allDay && o.startTime && o.occurrenceEndDate === o.occurrenceDate);
@@ -181,6 +190,48 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
             </button>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-zinc-500">Días:</span>
+            <div className="flex gap-1">
+              {WEEK_DAYS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDay(d)}
+                  aria-pressed={activeDays.includes(d)}
+                  title={DAY_NAMES[d]}
+                  className={cn(
+                    "h-8 w-10 rounded-lg border text-xs font-semibold capitalize cursor-pointer",
+                    activeDays.includes(d) ? "bg-violet-600 border-violet-600 text-white" : "border-zinc-300 text-zinc-500 hover:text-zinc-900"
+                  )}
+                >
+                  {DAY_SHORT[d]}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setChosenDays(WEEK_DAYS.slice(0, 5))}
+              aria-pressed={sameDays(WEEK_DAYS.slice(0, 5))}
+              className={cn("px-2.5 h-8 rounded-lg border text-xs font-medium cursor-pointer", sameDays(WEEK_DAYS.slice(0, 5)) ? "border-violet-600 text-violet-700 bg-violet-50" : "border-zinc-300 text-zinc-600 hover:text-zinc-900")}
+            >
+              Lunes a viernes
+            </button>
+            <button
+              type="button"
+              onClick={() => setChosenDays(WEEK_DAYS)}
+              aria-pressed={sameDays(WEEK_DAYS)}
+              className={cn("px-2.5 h-8 rounded-lg border text-xs font-medium cursor-pointer", sameDays(WEEK_DAYS) ? "border-violet-600 text-violet-700 bg-violet-50" : "border-zinc-300 text-zinc-600 hover:text-zinc-900")}
+            >
+              Toda la semana
+            </button>
+            {chosenDays && (
+              <button type="button" onClick={() => setChosenDays(null)} className="text-xs text-zinc-500 hover:text-zinc-900 underline cursor-pointer">
+                Automático
+              </button>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="text-zinc-500">Calendarios:</span>
@@ -213,10 +264,6 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
               </label>
             )}
             <label className="inline-flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={withWeekend} onChange={(e) => setWeekend(e.target.checked)} className="accent-violet-600" />
-              Sábado y domingo
-            </label>
-            <label className="inline-flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" checked={includeTasks} onChange={(e) => setIncludeTasks(e.target.checked)} className="accent-violet-600" />
               Incluir tareas
             </label>
@@ -230,7 +277,7 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
             </select>
           </div>
           <p className="text-xs text-zinc-500">
-            Para el PDF, en el diálogo de impresión elegí «Guardar como PDF» como destino. Si no salen los colores, activá «Gráficos de fondo».
+            Para el PDF, en el diálogo de impresión elegí «Guardar como PDF» como destino. Si no salen los colores, activá «Gráficos de fondo»; desactivá «Encabezados y pies de página» y dejá la escala en 100 % (Predeterminado).
           </p>
         </div>
       </div>
@@ -238,6 +285,7 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
       {/* Hoja */}
       <div className="overflow-x-auto py-6 print:p-0 print:overflow-visible">
         <div
+          lang="es"
           className="print-sheet mx-auto bg-white shadow-xl"
           style={{ width: `${page.w}mm`, height: `${page.h - 1}mm`, padding: "10mm", boxSizing: "content-box", overflow: "hidden" }}
         >
@@ -256,7 +304,7 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
 
           {mode === "week" ? (
             <WeekSheet
-              days={datesBetween(range.from, range.to).filter((d) => withWeekend || !["S", "D"].includes(weekdayKey(d)))}
+              days={datesBetween(range.from, range.to).filter((d) => activeDays.includes(weekdayKey(d)))}
               occurrences={occurrences}
               calendarById={calendarById}
               slots={slots}
@@ -270,7 +318,7 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
               date={date}
               occurrences={occurrences}
               calendarById={calendarById}
-              withWeekend={withWeekend}
+              weekdays={activeDays}
               fill={fill}
               height={page.h - 1 - TITLE_MM}
             />
@@ -296,6 +344,36 @@ function blockStyle(hex: string, fill: Fill): React.CSSProperties {
 }
 
 const pt = (n: number) => `${n}pt`;
+
+/**
+ * Achica la letra de cada bloque (`data-fit` = tamaño inicial en pt) hasta que
+ * el texto entre entero; si ni así entra, esconde los detalles (`data-detail`).
+ * Se mide en pantalla con el mismo tamaño en mm que tiene la hoja impresa.
+ */
+function useFitText(ref: React.RefObject<HTMLElement | null>) {
+  React.useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const overflows = (el: HTMLElement) => el.scrollHeight > el.clientHeight + 0.5 || el.scrollWidth > el.clientWidth + 0.5;
+    for (const el of root.querySelectorAll<HTMLElement>("[data-fit]")) {
+      const details = el.querySelectorAll<HTMLElement>("[data-detail]");
+      details.forEach((d) => (d.style.display = ""));
+      let size = Number(el.dataset.fit) || 8;
+      el.style.fontSize = `${size}pt`;
+      while (overflows(el) && size > 6) {
+        size -= 0.25;
+        el.style.fontSize = `${size}pt`;
+      }
+      if (overflows(el)) {
+        details.forEach((d) => (d.style.display = "none"));
+        while (overflows(el) && size > 5) {
+          size -= 0.25;
+          el.style.fontSize = `${size}pt`;
+        }
+      }
+    }
+  });
+}
 
 // --------------------------------------------------------------------------------
 // Semana
@@ -336,9 +414,11 @@ function WeekSheet({
   const labelMm = slotMode ? 24 : 12;
   const columns = `${labelMm}mm repeat(${days.length}, minmax(0, 1fr))`;
   const line = "0.2mm solid #d4d4d8";
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  useFitText(rootRef);
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div style={{ display: "grid", gridTemplateColumns: columns, borderTop: line, borderLeft: line }}>
         {/* Encabezado */}
         <div style={{ height: `${HEADER_MM}mm`, borderRight: line, borderBottom: line, background: "#f4f4f5" }} />
@@ -426,28 +506,34 @@ function WeekSheet({
                 return (
                   <div
                     key={key}
-                    className={cn("absolute overflow-hidden rounded-[1.2mm] leading-tight", slotMode && "flex flex-col items-center justify-center text-center")}
+                    data-fit={h < 7 ? 6.5 : 8}
+                    className={cn(
+                      "absolute overflow-hidden rounded-[1.2mm] leading-[1.18] [overflow-wrap:anywhere] hyphens-auto",
+                      slotMode && "flex flex-col items-center text-center"
+                    )}
                     style={{
                       ...blockStyle(colorOf(occ, calendarById), fill),
                       top: `${start * rowMm + 0.4}mm`,
                       height: `${h}mm`,
                       left: `calc(${(lane / total) * 100}% + 0.6mm)`,
                       width: `calc(${100 / total}% - 1.2mm)`,
-                      padding: "0.8mm 1mm",
+                      padding: "0.7mm 0.9mm",
+                      // "safe": si el texto no entra, se corta abajo (y se mide) en vez de arriba.
+                      ...(slotMode && { justifyContent: "safe center" }),
                     }}
                   >
-                    <div className={cn("font-bold", occ.completed && "line-through")} style={{ fontSize: pt(h < 7 ? 6.5 : 7.5) }}>
+                    <div className={cn("font-bold", occ.completed && "line-through")}>
                       {occ.title}
                       {occ.tag && occ.tag !== "General" && slotMode && <span className="font-normal"> ({occ.tag})</span>}
                     </div>
-                    {h >= 9 && (
-                      <div style={{ fontSize: pt(6.5), opacity: 0.85 }} className="font-mono">
+                    {h >= 7 && (
+                      <div data-detail style={{ fontSize: "0.85em", opacity: 0.85 }} className="font-mono whitespace-nowrap">
                         {occ.startTime}
                         {occ.endTime ? `–${occ.endTime}` : ""}
                       </div>
                     )}
-                    {h >= 13 && occ.location && (
-                      <div style={{ fontSize: pt(6.5), opacity: 0.85 }} className="truncate max-w-full">
+                    {h >= 10 && occ.location && (
+                      <div data-detail style={{ fontSize: "0.85em", opacity: 0.85 }}>
                         {occ.location}
                       </div>
                     )}
@@ -475,14 +561,14 @@ function MonthSheet({
   date,
   occurrences,
   calendarById,
-  withWeekend,
+  weekdays,
   fill,
   height,
 }: {
   date: string;
   occurrences: PlannerOccurrence[];
   calendarById: Map<string, Calendar>;
-  withWeekend: boolean;
+  weekdays: WeekDay[];
   fill: Fill;
   height: number;
 }) {
@@ -493,23 +579,21 @@ function MonthSheet({
   const weeks: string[][] = [];
   for (let i = 0; i < all.length; i += 7) {
     const week = all.slice(i, i + 7);
-    if (week.some((d) => d.startsWith(month))) weeks.push(withWeekend ? week : week.slice(0, 5));
+    if (week.some((d) => d.startsWith(month))) weeks.push(week.filter((d) => weekdays.includes(weekdayKey(d))));
   }
-  const cols = withWeekend ? 7 : 5;
+  const cols = weekdays.length;
   const cellMm = (height - HEADER_MM - 1) / weeks.length;
   const maxLines = Math.max(1, Math.floor((cellMm - 5) / 3.7));
   const line = "0.2mm solid #d4d4d8";
-  const weekdays = weeks[0] ?? [];
-
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, borderTop: line, borderLeft: line }}>
-      {weekdays.map((d) => (
+      {WEEK_DAYS.filter((d) => weekdays.includes(d)).map((d) => (
         <div
           key={d}
           className="flex items-center justify-center font-semibold uppercase tracking-wide"
           style={{ height: `${HEADER_MM}mm`, borderRight: line, borderBottom: line, background: "#f4f4f5", fontSize: pt(8.5) }}
         >
-          {DAY_NAMES[weekdayKey(d)]}
+          {DAY_NAMES[d]}
         </div>
       ))}
       {weeks.flat().map((day) => {
