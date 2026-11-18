@@ -1,12 +1,13 @@
-import { WeeklyKanban } from "@/components/planificador/WeeklyKanban";
-import { getPlannerData } from "@/lib/data";
+import { CalendarApp } from "@/components/calendario/CalendarApp";
+import { defaultPlannerRange, getPlannerData } from "@/lib/data";
 
 export default async function PlanificadorPage() {
-  const data = await getPlannerData();
+  const range = defaultPlannerRange();
+  const data = await getPlannerData(range);
 
   return (
     <div className="pb-12">
-      <WeeklyKanban initialData={data} />
+      <CalendarApp initialData={data} initialRange={range} />
     </div>
   );
 }

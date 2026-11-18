@@ -2,82 +2,67 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import webPush, { type WebPushError } from "web-push";
 import type { Database, Tables } from "@/lib/database.types";
-import { addDays, DEFAULT_TIMEZONE, isoDateInZone, isValidTimeZone, zonedTimeToUtc } from "@/lib/dates";
-import { mapEvent } from "@/lib/mappers";
-import { completionKey, occursOn } from "@/lib/planner";
+import { addDays, DEFAULT_TIMEZONE, isValidTimeZone } from "@/lib/dates";
+import { mapCalendar, mapEvent } from "@/lib/mappers";
+import { completionKey } from "@/lib/recurrence";
+import { MAX_REMINDER_MINUTES } from "@/lib/reminder-options";
 import { INACTIVITY_OPTIONS, isInactivityHours, planInactivityNudges } from "./inactivity";
+import { effectiveReminders, planEventReminders } from "./plan-reminders";
 
 type Admin = SupabaseClient<Database>;
 
-/** Minutos antes del inicio en que se avisa. */
-export const REMINDER_OFFSETS = [30, 15, 5] as const;
-/** Ventana hacia adelante que se encola en cada corrida (> intervalo del cron). */
-const LOOKAHEAD_MS = 35 * 60_000;
-/** Tolerancia hacia atrás: si el cron se atrasó un poco, igual se encola. */
-const GRACE_MS = 5 * 60_000;
 const SEND_CONCURRENCY = 20;
 
 // ------------------------------------------------------------------------------
-// 1. ENCOLAR: eventos con hora -> filas en `notifications` (idempotente)
+// 1. ENCOLAR: recordatorios de eventos -> filas en `notifications` (idempotente)
 // ------------------------------------------------------------------------------
 
 export async function enqueueReminders(supabase: Admin, now: Date): Promise<number> {
   const utcToday = now.toISOString().slice(0, 10);
-
-  // Solo eventos con hora: semanales, o puntuales cerca de hoy (±1 día cubre
-  // cualquier zona horaria).
+  // Un evento puntual puede avisar hasta 4 semanas antes: se leen los que
+  // empiezan entre ayer y dentro de ~4 semanas, más todos los que se repiten.
+  const horizon = addDays(utcToday, Math.ceil(MAX_REMINDER_MINUTES / 1440) + 2);
   const { data: rows, error } = await supabase
     .from("calendar_events")
     .select("*")
-    .not("start_time", "is", null)
-    .or(`is_recurring.eq.true,and(date.gte.${addDays(utcToday, -1)},date.lte.${addDays(utcToday, 1)})`);
+    .or(`recurrence.not.is.null,and(start_date.gte.${addDays(utcToday, -1)},start_date.lte.${horizon})`);
   if (error) throw new Error(`No se pudieron leer los eventos: ${error.message}`);
   if (!rows.length) return 0;
 
   const userIds = [...new Set(rows.map((r) => r.user_id))];
-  const [settingsRes, completionsRes] = await Promise.all([
+  const calendarIds = [...new Set(rows.map((r) => r.calendar_id))];
+  const [settingsRes, completionsRes, calendarsRes] = await Promise.all([
     supabase.from("user_settings").select("user_id, timezone").in("user_id", userIds),
     supabase
       .from("event_completions")
       .select("event_id, date")
       .in("event_id", rows.map((r) => r.id))
       .gte("date", addDays(utcToday, -1))
-      .lte("date", addDays(utcToday, 1)),
+      .lte("date", horizon),
+    supabase.from("calendars").select("*").in("id", calendarIds),
   ]);
   if (settingsRes.error) throw new Error(settingsRes.error.message);
   if (completionsRes.error) throw new Error(completionsRes.error.message);
+  if (calendarsRes.error) throw new Error(calendarsRes.error.message);
 
   const tzByUser = new Map(
     settingsRes.data.map((s) => [s.user_id, isValidTimeZone(s.timezone) ? s.timezone : DEFAULT_TIMEZONE])
   );
+  const calendars = new Map(calendarsRes.data.map((c, i) => [c.id, mapCalendar(c, i)]));
   const completed = new Set(completionsRes.data.map((c) => completionKey(c.event_id, c.date)));
 
   const toInsert: Database["public"]["Tables"]["notifications"]["Insert"][] = [];
   for (const row of rows) {
     const event = mapEvent(row);
-    if (!event.startTime) continue;
-    const tz = tzByUser.get(row.user_id) ?? DEFAULT_TIMEZONE;
-    const localToday = isoDateInZone(now, tz);
-
-    // Hoy y mañana (local): un evento a las 00:10 se avisa a las 23:40 del día anterior.
-    for (const date of [localToday, addDays(localToday, 1)]) {
-      if (!occursOn(event, date) || completed.has(completionKey(event.id, date))) continue;
-      const start = zonedTimeToUtc(date, event.startTime, tz);
-
-      for (const offset of REMINDER_OFFSETS) {
-        const at = new Date(start.getTime() - offset * 60_000);
-        const delta = at.getTime() - now.getTime();
-        if (delta < -GRACE_MS || delta > LOOKAHEAD_MS) continue;
-        toInsert.push({
-          user_id: row.user_id,
-          event_id: row.id,
-          kind: `reminder_${offset}`,
-          title: "Recordatorio de Focus",
-          body: `"${event.title}" empieza en ${offset} minutos (${event.startTime}).`,
-          url: "/dashboard",
-          scheduled_for: at.toISOString(),
-        });
-      }
+    const offsets = effectiveReminders(event, calendars.get(row.calendar_id));
+    for (const reminder of planEventReminders({
+      event,
+      offsets,
+      timeZone: tzByUser.get(row.user_id) ?? DEFAULT_TIMEZONE,
+      now,
+      completed,
+    })) {
+      toInsert.push({ user_id: row.user_id, event_id: row.id, url: "/planificador", ...reminder });
     }
   }
 

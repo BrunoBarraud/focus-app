@@ -1,11 +1,10 @@
 export default function Loading() {
   return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-10 bg-zinc-900 rounded-lg w-1/4" />
-      <div className="flex gap-4 overflow-hidden">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="w-72 h-96 bg-zinc-900 rounded-2xl shrink-0" />
-        ))}
+    <div className="space-y-4 animate-pulse">
+      <div className="h-10 bg-zinc-900 rounded-xl w-72" />
+      <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-4">
+        <div className="hidden lg:block h-72 bg-zinc-900/60 rounded-2xl" />
+        <div className="h-[560px] bg-zinc-900/60 rounded-2xl" />
       </div>
     </div>
   );

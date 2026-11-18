@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { isIsoDate, isTime, isValidTimeZone } from "./dates";
 import { isInactivityHours } from "./notifications/inactivity";
-import { buildSlots, isTimetableColor, toMinutes } from "./timetable";
+import { isColorKey } from "./colors";
+import { MAX_REMINDER_MINUTES, MAX_REMINDERS } from "./reminder-options";
+import { buildSlots, toMinutes } from "./timetable";
 
 // Las server actions son endpoints POST públicos: los tipos de TypeScript no
 // existen en runtime, así que todo input se valida acá.
@@ -32,29 +34,62 @@ export const habitInput = z.object({
     .optional(),
 });
 
-export const taskInput = z
+const colorKey = z.string().refine(isColorKey, "Color inválido.");
+const reminderList = z
+  .array(z.number().int().min(0).max(MAX_REMINDER_MINUTES))
+  .max(MAX_REMINDERS)
+  .transform((list) => [...new Set(list)].sort((a, b) => b - a));
+
+export const recurrenceInput = z
+  .object({
+    freq: z.enum(["daily", "weekly", "monthly", "yearly"]),
+    interval: z.number().int().min(1).max(99),
+    byWeekday: z.array(weekDay).max(7).optional(),
+    monthlyMode: z.enum(["day", "nth"]).optional(),
+    until: isoDate.optional(),
+    count: z.number().int().min(1).max(999).optional(),
+  })
+  .refine((r) => !(r.until && r.count), { message: "Elegí terminar en una fecha o después de N veces, no las dos." });
+
+/** Alta y edición de tareas y eventos del calendario. */
+export const eventInput = z
   .object({
     calendarId: uuid.optional(),
     title: title(200),
     description: optionalText(2000),
-    recurring: z.boolean(),
-    date: isoDate.optional(),
-    daysOfWeek: z.array(weekDay).max(7).optional(),
+    kind: z.enum(["task", "event"]),
+    allDay: z.boolean(),
+    startDate: isoDate,
+    endDate: isoDate.optional(),
     startTime: time.optional(),
     endTime: time.optional(),
+    recurrence: recurrenceInput.nullable().optional(),
+    // null = usar los del calendario.
+    reminders: reminderList.nullable().optional(),
+    location: optionalText(200),
+    url: optionalText(500),
+    // null = el color del calendario.
+    color: colorKey.nullable().optional(),
     priority,
     estimatedMinutes: z.number().int().min(5).max(24 * 60).optional(),
     tag: z.string().trim().max(40).optional(),
-    // undefined = no tocar; null = color automático.
-    color: z.string().refine(isTimetableColor, "Color inválido.").nullable().optional(),
   })
-  .refine((t) => (t.recurring ? (t.daysOfWeek?.length ?? 0) > 0 : Boolean(t.date)), {
-    message: "Una tarea semanal necesita días; una puntual necesita fecha.",
+  .refine((e) => !e.endDate || e.endDate >= e.startDate, {
+    message: "El evento no puede terminar antes de empezar.",
   })
-  .refine((t) => !t.startTime || !t.endTime || toMinutes(t.endTime) > toMinutes(t.startTime), {
-    message: "La hora de fin tiene que ser después de la de inicio.",
+  .refine(
+    (e) =>
+      e.allDay ||
+      !e.startTime ||
+      !e.endTime ||
+      (e.endDate && e.endDate > e.startDate) ||
+      toMinutes(e.endTime) > toMinutes(e.startTime),
+    { message: "La hora de fin tiene que ser después de la de inicio." }
+  )
+  .refine((e) => !e.recurrence?.until || e.recurrence.until >= e.startDate, {
+    message: "La repetición no puede terminar antes de la primera fecha.",
   });
-export type TaskInput = z.input<typeof taskInput>;
+export type EventInput = z.input<typeof eventInput>;
 
 export const calendarScheduleInput = z
   .object({
@@ -68,8 +103,14 @@ export const calendarScheduleInput = z
 
 export const calendarInput = z.object({
   name: title(60),
-  color: z.string().max(60),
+  color: colorKey,
+  icon: z.string().trim().max(8).nullable().optional(),
+  hidden: z.boolean().optional(),
+  defaultReminders: reminderList.optional(),
+  useSlots: z.boolean().optional(),
+  schedule: calendarScheduleInput.optional(),
 });
+export type CalendarInput = z.input<typeof calendarInput>;
 
 export const goalInput = z.object({
   title: title(200),

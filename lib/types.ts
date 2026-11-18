@@ -42,17 +42,45 @@ export interface CalendarSchedule {
 export interface Calendar {
   id: string;
   name: string;
+  /** Clave de la paleta (lib/colors.ts). */
   color: string;
+  /** Emoji opcional que acompaña al nombre. */
+  icon?: string;
+  /** Oculto: sus eventos no se muestran en las vistas. */
+  hidden: boolean;
+  position: number;
+  /** Minutos antes para avisar, si el evento no define los suyos. */
+  defaultReminders: number[];
+  /** Si las vistas Día/Semana usan los bloques horarios de este calendario. */
+  useSlots: boolean;
   schedule: CalendarSchedule;
 }
 
 export type WeekDay = "L" | "M" | "X" | "J" | "V" | "S" | "D";
 export type TaskPriority = "high" | "medium" | "low";
+export type EventKind = "task" | "event";
+export type RecurrenceFreq = "daily" | "weekly" | "monthly" | "yearly";
+
+/** Regla de repetición (estilo RRULE, simplificada). */
+export interface Recurrence {
+  freq: RecurrenceFreq;
+  /** Cada cuántas unidades (cada 2 semanas = 2). */
+  interval: number;
+  /** Semanal: días en que se repite. Vacío = el día de la fecha de inicio. */
+  byWeekday?: WeekDay[];
+  /** Mensual: el mismo número de día ("day") o "el segundo martes" ("nth"). */
+  monthlyMode?: "day" | "nth";
+  /** Última fecha posible (inclusive). */
+  until?: string;
+  /** Cantidad total de repeticiones. */
+  count?: number;
+}
 
 /**
- * Evento del planificador. Puede ser:
- *  - puntual: `recurring = false` y `date` con la fecha (YYYY-MM-DD)
- *  - semanal: `recurring = true` y `daysOfWeek` con los días en que se repite
+ * Tarea o evento del calendario.
+ *  - `kind`: "task" se tilda; "event" tiene inicio y fin (una clase, un final).
+ *  - `startDate`/`endDate`: primer día y, si dura varios días, el último.
+ *  - `recurrence`: cómo se repite (sin regla = una sola vez).
  * El completado es por ocurrencia (ver `completions`).
  */
 export interface PlannerEvent {
@@ -60,21 +88,29 @@ export interface PlannerEvent {
   calendarId: string;
   title: string;
   description?: string;
-  recurring: boolean;
-  date?: string;
-  daysOfWeek: WeekDay[];
+  kind: EventKind;
+  allDay: boolean;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD, solo si dura más de un día
   startTime?: string; // HH:MM
   endTime?: string; // HH:MM
+  recurrence?: Recurrence;
+  /** Minutos antes para avisar. undefined = los del calendario. */
+  reminders?: number[];
+  location?: string;
+  url?: string;
+  /** Clave de la paleta; undefined = el color del calendario. */
+  color?: string;
   priority: TaskPriority;
   estimatedMinutes?: number;
   tag: string;
-  /** Color en la grilla de horario (clave de TIMETABLE_COLORS). */
-  color?: string;
 }
 
-/** Ocurrencia concreta de un evento en una fecha. */
+/** Ocurrencia concreta de un evento: empieza en `occurrenceDate`. */
 export interface PlannerOccurrence extends PlannerEvent {
   occurrenceDate: string;
+  /** Último día de esta ocurrencia (igual a occurrenceDate si es de un día). */
+  occurrenceEndDate: string;
   completed: boolean;
 }
 

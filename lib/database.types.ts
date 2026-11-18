@@ -16,7 +16,15 @@ export type Database = {
     Tables: {
       calendar_events: {
         Row: {
+          all_day: boolean
           calendar_id: string
+          end_date: string | null
+          kind: string
+          location: string | null
+          recurrence: Json | null
+          reminders: number[] | null
+          start_date: string
+          url: string | null
           color: string | null
           created_at: string
           date: string | null
@@ -35,7 +43,15 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          all_day?: boolean
           calendar_id: string
+          end_date?: string | null
+          kind?: string
+          location?: string | null
+          recurrence?: Json | null
+          reminders?: number[] | null
+          start_date: string
+          url?: string | null
           color?: string | null
           created_at?: string
           date?: string | null
@@ -54,7 +70,15 @@ export type Database = {
           user_id: string
         }
         Update: {
+          all_day?: boolean
           calendar_id?: string
+          end_date?: string | null
+          kind?: string
+          location?: string | null
+          recurrence?: Json | null
+          reminders?: number[] | null
+          start_date?: string
+          url?: string | null
           color?: string | null
           created_at?: string
           date?: string | null
@@ -87,33 +111,48 @@ export type Database = {
           color: string
           created_at: string
           day_end: string
+          default_reminders: number[]
+          hidden: boolean
+          icon: string | null
           id: string
           name: string
+          position: number
           slot_gap_minutes: number
           slot_minutes: number
           slot_start: string
+          use_slots: boolean
           user_id: string
         }
         Insert: {
           color?: string
           created_at?: string
           day_end?: string
+          default_reminders?: number[]
+          hidden?: boolean
+          icon?: string | null
           id?: string
           name: string
+          position?: number
           slot_gap_minutes?: number
           slot_minutes?: number
           slot_start?: string
+          use_slots?: boolean
           user_id: string
         }
         Update: {
           color?: string
           created_at?: string
           day_end?: string
+          default_reminders?: number[]
+          hidden?: boolean
+          icon?: string | null
           id?: string
           name?: string
+          position?: number
           slot_gap_minutes?: number
           slot_minutes?: number
           slot_start?: string
+          use_slots?: boolean
           user_id?: string
         }
         Relationships: []

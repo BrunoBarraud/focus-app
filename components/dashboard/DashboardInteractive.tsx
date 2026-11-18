@@ -3,7 +3,7 @@
 import * as React from "react";
 import type { Habit, Goal, MorningRitual, PlannerData } from "@/lib/types";
 import { HabitTrackerMatrix } from "./HabitTrackerMatrix";
-import { WeeklyMonthlyPlanner } from "./WeeklyMonthlyPlanner";
+import { TodayPanel } from "./TodayPanel";
 import { EditablePomodoro } from "./EditablePomodoro";
 import { InlineMorningRitual } from "./InlineMorningRitual";
 import { FluidGoalsList } from "./FluidGoalsList";
@@ -24,6 +24,7 @@ function greetingFor(hour: number) {
 interface DashboardInteractiveProps {
   initialHabits: Habit[];
   initialPlanner: PlannerData;
+  plannerRange: { from: string; to: string };
   initialGoals: Goal[];
   initialRitual: MorningRitual;
   initialInactivityHours: InactivityHours | null;
@@ -33,6 +34,7 @@ interface DashboardInteractiveProps {
 export function DashboardInteractive({
   initialHabits,
   initialPlanner,
+  plannerRange,
   initialGoals,
   initialRitual,
   initialInactivityHours,
@@ -68,7 +70,7 @@ export function DashboardInteractive({
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Planificador Inteligente: Widget principal y más ancho (7 de 12 columnas) */}
         <div className="lg:col-span-7 flex flex-col h-full">
-          <WeeklyMonthlyPlanner initialData={initialPlanner} />
+          <TodayPanel initialData={initialPlanner} initialRange={plannerRange} />
         </div>
 
         {/* Columna lateral: Pomodoro + prioridades */}

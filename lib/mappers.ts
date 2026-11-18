@@ -1,5 +1,6 @@
-import { CALENDAR_COLORS } from "./calendar-colors";
-import { DEFAULT_SCHEDULE, isTimetableColor } from "./timetable";
+import { CALENDAR_COLOR_ORDER, isColorKey, normalizeColor } from "./colors";
+import { isIsoDate } from "./dates";
+import { DEFAULT_SCHEDULE } from "./timetable";
 import type { Tables } from "./database.types";
 import type {
   Calendar,
@@ -13,6 +14,8 @@ import type {
   HabitCategory,
   MorningRitual,
   PlannerEvent,
+  Recurrence,
+  RecurrenceFreq,
   SupportFeedback,
   SupportFeedbackPriority,
   SupportFeedbackStatus,
@@ -55,24 +58,68 @@ export function mapHabit(row: HabitRow): Habit {
 
 const hhmm = (value: string | null) => (value ? value.slice(0, 5) : undefined);
 
+const FREQS = ["daily", "weekly", "monthly", "yearly"] as const;
+
+function isWeekDay(value: unknown): value is WeekDay {
+  return typeof value === "string" && (WEEK_DAYS as readonly string[]).includes(value);
+}
+
+/** Valida el JSON de repetición; cualquier cosa rara se descarta (= no se repite). */
+export function parseRecurrence(value: unknown): Recurrence | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const v = value as Record<string, unknown>;
+  if (!(FREQS as readonly unknown[]).includes(v.freq)) return undefined;
+  const rule: Recurrence = {
+    freq: v.freq as RecurrenceFreq,
+    interval: typeof v.interval === "number" && v.interval >= 1 ? Math.floor(v.interval) : 1,
+  };
+  if (Array.isArray(v.byWeekday)) {
+    const days = v.byWeekday.filter(isWeekDay);
+    if (days.length) rule.byWeekday = days;
+  }
+  if (v.monthlyMode === "nth" || v.monthlyMode === "day") rule.monthlyMode = v.monthlyMode;
+  if (isIsoDate(v.until)) rule.until = v.until;
+  if (typeof v.count === "number" && v.count >= 1) rule.count = Math.floor(v.count);
+  return rule;
+}
+
+function createdDate(row: { created_at: string }): string {
+  return row.created_at.slice(0, 10);
+}
+
 export function mapEvent(row: Tables<"calendar_events">): PlannerEvent {
-  const days = (row.days_of_week ?? []).filter((d): d is WeekDay =>
-    (WEEK_DAYS as readonly string[]).includes(d)
-  );
+  // Compatibilidad: filas sin convertir por la migración del calendario
+  // completo (start_date vacío) se leen con el modelo viejo.
+  const legacy = !row.start_date;
+  const legacyDays = (row.days_of_week ?? []).filter(isWeekDay);
+  const startDate = row.start_date ?? row.date ?? createdDate(row);
+  const recurrence = legacy
+    ? row.is_recurring || !row.date
+      ? ({ freq: "weekly", interval: 1, byWeekday: legacyDays } satisfies Recurrence)
+      : undefined
+    : parseRecurrence(row.recurrence);
+
+  const startTime = hhmm(row.start_time);
+  const endTime = hhmm(row.end_time);
   return {
     id: row.id,
     calendarId: row.calendar_id,
     title: row.title,
     description: row.description ?? undefined,
-    recurring: Boolean(row.is_recurring) || !row.date,
-    date: row.date ?? undefined,
-    daysOfWeek: days,
-    startTime: hhmm(row.start_time),
-    endTime: hhmm(row.end_time),
+    kind: legacy ? (startTime && endTime ? "event" : "task") : row.kind === "event" ? "event" : "task",
+    allDay: Boolean(row.all_day),
+    startDate,
+    endDate: row.end_date && row.end_date > startDate ? row.end_date : undefined,
+    startTime,
+    endTime,
+    recurrence,
+    reminders: Array.isArray(row.reminders) ? row.reminders.filter((n) => Number.isFinite(n) && n >= 0) : undefined,
+    location: row.location ?? undefined,
+    url: row.url ?? undefined,
+    color: isColorKey(row.color) ? row.color : undefined,
     priority: oneOf<TaskPriority>(row.priority, PRIORITIES, "medium"),
     estimatedMinutes: row.estimated_minutes ?? undefined,
     tag: row.tag ?? "General",
-    color: isTimetableColor(row.color) ? row.color : undefined,
   };
 }
 
@@ -80,11 +127,13 @@ export function mapCalendar(row: Tables<"calendars">, index: number): Calendar {
   return {
     id: row.id,
     name: row.name,
-    // El color guardado es una clase de Tailwind elegida de esta lista; si no
-    // coincide (datos viejos), se asigna uno estable por posición.
-    color: (CALENDAR_COLORS as readonly string[]).includes(row.color)
-      ? row.color
-      : CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+    // Acepta la clave nueva ("violet") y el formato viejo ("bg-violet-500 …").
+    color: normalizeColor(row.color, CALENDAR_COLOR_ORDER[index % CALENDAR_COLOR_ORDER.length]),
+    icon: row.icon ?? undefined,
+    hidden: Boolean(row.hidden),
+    position: row.position ?? index,
+    defaultReminders: Array.isArray(row.default_reminders) ? row.default_reminders : [30, 15, 5],
+    useSlots: Boolean(row.use_slots),
     schedule: {
       start: hhmm(row.slot_start) ?? DEFAULT_SCHEDULE.start,
       slotMinutes: row.slot_minutes ?? DEFAULT_SCHEDULE.slotMinutes,

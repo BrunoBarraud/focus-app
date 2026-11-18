@@ -62,12 +62,16 @@ export async function getHabits(): Promise<Habit[]> {
   return rows.map(mapHabit);
 }
 
+/** Ventana de completados que se carga de entrada (hoy ± 45 días). */
+export function defaultPlannerRange(): { from: string; to: string } {
+  const today = toIsoDate(new Date());
+  return { from: addDays(today, -PLANNER_WINDOW_DAYS), to: addDays(today, PLANNER_WINDOW_DAYS) };
+}
+
 /** Eventos del planificador + completados en [from, to] (fechas ISO). */
 export async function getPlannerData(range?: { from: string; to: string }): Promise<PlannerData> {
   const { supabase, user } = await requireSession();
-  const today = toIsoDate(new Date());
-  const from = range?.from ?? addDays(today, -PLANNER_WINDOW_DAYS);
-  const to = range?.to ?? addDays(today, PLANNER_WINDOW_DAYS);
+  const { from, to } = range ?? defaultPlannerRange();
 
   const [events, completions, calendars] = await Promise.all([
     supabase.from("calendar_events").select("*").eq("user_id", user.id).order("created_at"),
@@ -83,7 +87,10 @@ export async function getPlannerData(range?: { from: string; to: string }): Prom
   return {
     events: check(events, "tareas").map(mapEvent),
     completions: check(completions, "tareas completadas").map((c) => completionKey(c.event_id, c.date)),
-    calendars: check(calendars, "calendarios").map(mapCalendar),
+    // Orden por `position` en memoria (la columna puede no existir si falta la migración).
+    calendars: check(calendars, "calendarios")
+      .map(mapCalendar)
+      .sort((a, b) => a.position - b.position),
   };
 }
 

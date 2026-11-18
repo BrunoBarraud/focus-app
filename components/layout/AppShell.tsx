@@ -13,6 +13,8 @@ import type { Viewer } from "@/lib/types";
 export function AppShell({ children, viewer }: { children: React.ReactNode; viewer: Viewer | null }) {
   const pathname = usePathname();
   const isPublicRoute = pathname === "/login" || pathname === "/";
+  // Hoja para imprimir: sin barra lateral ni fondo oscuro.
+  if (pathname.startsWith("/planificador/imprimir")) return <ToastProvider>{children}</ToastProvider>;
 
   if (isPublicRoute) {
     return (

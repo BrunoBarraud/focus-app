@@ -1,6 +1,7 @@
-import type { CalendarSchedule, PlannerEvent, WeekDay } from "./types";
+import type { CalendarSchedule } from "./types";
 
-// Lógica pura de la grilla de horario semanal (bloques tipo facultad).
+// Lógica pura de la grilla horaria (vistas Día/Semana e impresión):
+// filas por hora o por bloques tipo facultad, y carriles para lo superpuesto.
 
 export const DEFAULT_SCHEDULE: CalendarSchedule = {
   start: "07:30",
@@ -24,8 +25,9 @@ export function toMinutes(time: string): number {
 }
 
 export function fromMinutes(total: number): string {
-  const h = Math.floor(total / 60);
-  const m = total % 60;
+  const clamped = Math.max(0, Math.min(total, 24 * 60 - 1));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -41,6 +43,15 @@ export function buildSlots(schedule: CalendarSchedule): TimeSlot[] {
   return slots;
 }
 
+/** Filas de una hora entre `fromHour` y `toHour` (para la grilla común). */
+export function buildHourSlots(fromHour: number, toHour: number): TimeSlot[] {
+  const slots: TimeSlot[] = [];
+  for (let h = fromHour; h < toHour; h++) {
+    slots.push({ index: slots.length, start: fromMinutes(h * 60), end: fromMinutes((h + 1) * 60) });
+  }
+  return slots;
+}
+
 /**
  * Rango de bloques [first, last] que ocupa un evento. Un evento que no coincide
  * exacto con los bloques se ajusta a los que toca. null si queda fuera del día.
@@ -49,8 +60,7 @@ export function slotRange(slots: TimeSlot[], startTime: string, endTime?: string
   if (slots.length === 0) return null;
   const start = toMinutes(startTime);
   // Sin hora de fin: ocupa un solo bloque.
-  const end = endTime ? toMinutes(endTime) : start + 1;
-  if (end <= start) return null;
+  const end = endTime && toMinutes(endTime) > start ? toMinutes(endTime) : start + 1;
 
   let first = -1;
   let last = -1;
@@ -65,84 +75,64 @@ export function slotRange(slots: TimeSlot[], startTime: string, endTime?: string
   return first === -1 ? null : [first, last];
 }
 
-export interface TimetableBlock {
-  event: PlannerEvent;
-  first: number;
-  last: number;
-  /** Columna dentro del día cuando hay clases superpuestas (Com A / Com B). */
+/**
+ * Posición vertical (en "filas", con decimales) de una hora dentro de la grilla.
+ * Entre bloques (en el corte) se pega al bloque siguiente. null si cae afuera.
+ */
+export function rowOffset(slots: TimeSlot[], minutes: number): number | null {
+  if (slots.length === 0) return null;
+  if (minutes < toMinutes(slots[0].start)) return null;
+  for (const slot of slots) {
+    const s = toMinutes(slot.start);
+    const e = toMinutes(slot.end);
+    if (minutes < s) return slot.index;
+    if (minutes <= e) return slot.index + (minutes - s) / (e - s);
+  }
+  return null;
+}
+
+export interface LaneInput {
+  id: string;
+  start: number;
+  end: number;
+}
+
+export interface LaneResult {
   lane: number;
   lanes: number;
 }
 
-/** Bloques de un día, repartidos en carriles si se superponen. */
-export function layoutDay(events: PlannerEvent[], slots: TimeSlot[], day: WeekDay): TimetableBlock[] {
-  const placed = events
-    .filter((e) => e.recurring && e.startTime && e.daysOfWeek.includes(day))
-    .map((event) => ({ event, range: slotRange(slots, event.startTime!, event.endTime) }))
-    .filter((x): x is { event: PlannerEvent; range: [number, number] } => x.range !== null)
-    .sort((a, b) => a.range[0] - b.range[0] || b.range[1] - a.range[1] || a.event.title.localeCompare(b.event.title));
-
-  // Agrupa en "clusters" de bloques que se pisan y asigna carriles dentro de cada uno.
-  const blocks: TimetableBlock[] = [];
-  let cluster: TimetableBlock[] = [];
-  let clusterEnd = -1;
+/**
+ * Reparte intervalos en carriles: lo que se superpone queda lado a lado
+ * (Com A / Com B a la misma hora). `start`/`end` en cualquier unidad.
+ */
+export function assignLanes(items: LaneInput[]): Map<string, LaneResult> {
+  const sorted = [...items].sort((a, b) => a.start - b.start || b.end - a.end);
+  const result = new Map<string, LaneResult>();
+  let cluster: string[] = [];
+  let clusterEnd = -Infinity;
   const laneEnds: number[] = [];
 
   const flush = () => {
     const lanes = Math.max(1, laneEnds.length);
-    cluster.forEach((b) => (b.lanes = lanes));
-    blocks.push(...cluster);
+    for (const id of cluster) result.set(id, { lane: result.get(id)!.lane, lanes });
     cluster = [];
     laneEnds.length = 0;
   };
 
-  for (const { event, range } of placed) {
-    const [first, last] = range;
-    if (cluster.length && first > clusterEnd) flush();
-    let lane = laneEnds.findIndex((end) => end < first);
+  for (const item of sorted) {
+    if (cluster.length && item.start >= clusterEnd) flush();
+    let lane = laneEnds.findIndex((end) => end <= item.start);
     if (lane === -1) {
       lane = laneEnds.length;
-      laneEnds.push(last);
+      laneEnds.push(item.end);
     } else {
-      laneEnds[lane] = last;
+      laneEnds[lane] = item.end;
     }
-    cluster.push({ event, first, last, lane, lanes: 1 });
-    clusterEnd = Math.max(clusterEnd, last);
+    result.set(item.id, { lane, lanes: 1 });
+    cluster.push(item.id);
+    clusterEnd = Math.max(clusterEnd, item.end);
   }
   if (cluster.length) flush();
-  return blocks;
-}
-
-// ------------------------------------------------------------------------------
-// Colores de las clases
-// ------------------------------------------------------------------------------
-
-export const TIMETABLE_COLORS = {
-  teal: { label: "Verde agua", block: "bg-teal-600 border-teal-400/50 text-white", dot: "bg-teal-500" },
-  emerald: { label: "Verde oscuro", block: "bg-emerald-800 border-emerald-500/50 text-white", dot: "bg-emerald-700" },
-  violet: { label: "Violeta", block: "bg-violet-600 border-violet-400/50 text-white", dot: "bg-violet-500" },
-  blue: { label: "Azul", block: "bg-blue-600 border-blue-400/50 text-white", dot: "bg-blue-500" },
-  sky: { label: "Celeste", block: "bg-sky-600 border-sky-400/50 text-white", dot: "bg-sky-500" },
-  amber: { label: "Ámbar", block: "bg-amber-500 border-amber-300/60 text-zinc-950", dot: "bg-amber-500" },
-  rose: { label: "Rosa", block: "bg-rose-600 border-rose-400/50 text-white", dot: "bg-rose-500" },
-  slate: { label: "Gris", block: "bg-zinc-700 border-zinc-500/50 text-white", dot: "bg-zinc-500" },
-} as const;
-
-export type TimetableColor = keyof typeof TIMETABLE_COLORS;
-export const TIMETABLE_COLOR_KEYS = Object.keys(TIMETABLE_COLORS) as TimetableColor[];
-
-export function isTimetableColor(value: unknown): value is TimetableColor {
-  return typeof value === "string" && value in TIMETABLE_COLORS;
-}
-
-/**
- * Color de una clase: el elegido, o uno estable según el nombre de la materia
- * (todas las clases de "Redes II" salen del mismo color sin configurar nada).
- */
-export function colorFor(event: Pick<PlannerEvent, "title" | "color">): TimetableColor {
-  if (isTimetableColor(event.color)) return event.color;
-  const key = event.title.trim().toLowerCase();
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  return TIMETABLE_COLOR_KEYS[hash % TIMETABLE_COLOR_KEYS.length];
+  return result;
 }

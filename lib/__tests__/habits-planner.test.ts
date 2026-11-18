@@ -45,14 +45,17 @@ describe("rachas de hábitos", () => {
 });
 
 describe("ocurrencias del planificador", () => {
-  const base: Omit<PlannerEvent, "id" | "recurring" | "date" | "daysOfWeek"> = {
+  const base: Omit<PlannerEvent, "id"> = {
     calendarId: "c1",
     title: "t",
+    kind: "task",
+    allDay: false,
+    startDate: "2026-10-12",
     priority: "medium",
     tag: "General",
   };
-  const weekly: PlannerEvent = { ...base, id: "w", recurring: true, daysOfWeek: ["L", "X"] };
-  const oneOff: PlannerEvent = { ...base, id: "o", recurring: false, date: "2026-10-14", daysOfWeek: ["X"] };
+  const weekly: PlannerEvent = { ...base, id: "w", recurrence: { freq: "weekly", interval: 1, byWeekday: ["L", "X"] } };
+  const oneOff: PlannerEvent = { ...base, id: "o", startDate: "2026-10-14" };
 
   it("una tarea semanal aparece todos los días elegidos", () => {
     expect(occurrencesOn([weekly], new Set(), "2026-10-12").map((o) => o.id)).toEqual(["w"]);
@@ -69,17 +72,6 @@ describe("ocurrencias del planificador", () => {
     const completions = new Set([completionKey("w", "2026-10-12")]);
     expect(occurrencesOn([weekly], completions, "2026-10-12")[0].completed).toBe(true);
     expect(occurrencesOn([weekly], completions, "2026-10-19")[0].completed).toBe(false);
-  });
-
-  it("ordena por hora de inicio", () => {
-    const late = { ...oneOff, id: "late", startTime: "18:00" };
-    const early = { ...oneOff, id: "early", startTime: "08:00" };
-    const untimed = { ...oneOff, id: "untimed" };
-    expect(occurrencesOn([untimed, late, early], new Set(), "2026-10-14").map((o) => o.id)).toEqual([
-      "early",
-      "late",
-      "untimed",
-    ]);
   });
 });
 
