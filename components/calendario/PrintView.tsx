@@ -17,11 +17,35 @@ type PrintMode = "week" | "month";
 type Orientation = "landscape" | "portrait";
 type Fill = "solid" | "soft";
 
-/** Área útil de una hoja A4 con márgenes de 10 mm. */
-const PAGE = {
-  landscape: { w: 277, h: 190 },
-  portrait: { w: 190, h: 277 },
+/** Tamaños de papel (mm, en vertical) y su nombre para @page. */
+const PAPERS = {
+  a4: { label: "A4", w: 210, h: 297, css: "A4" },
+  carta: { label: "Carta", w: 216, h: 279, css: "letter" },
+  oficio: { label: "Oficio", w: 216, h: 356, css: "legal" },
 } as const;
+type Paper = keyof typeof PAPERS;
+/** Muchas impresoras no llegan al borde: "amplio" deja lugar de sobra. */
+const MARGINS = { normal: 12, amplio: 18 } as const;
+type Margin = keyof typeof MARGINS;
+const PAPER_KEY = "focus:print-paper";
+const MARGIN_KEY = "focus:print-margin";
+
+function readPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const value = window.localStorage.getItem(key);
+    return allowed.includes(value as T) ? (value as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function savePref(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Sin almacenamiento: no se recuerda.
+  }
+}
 const TITLE_MM = 13;
 const HEADER_MM = 8;
 
@@ -51,6 +75,16 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
   // null = automático (lunes a viernes, más sábado/domingo si tienen algo).
   const [chosenDays, setChosenDays] = React.useState<WeekDay[] | null>(null);
   const [orientation, setOrientation] = React.useState<Orientation>("landscape");
+  const [paper, setPaperState] = React.useState<Paper>(() => readPref(PAPER_KEY, Object.keys(PAPERS) as Paper[], "a4"));
+  const [margin, setMarginState] = React.useState<Margin>(() => readPref(MARGIN_KEY, Object.keys(MARGINS) as Margin[], "normal"));
+  const setPaper = (value: Paper) => {
+    setPaperState(value);
+    savePref(PAPER_KEY, value);
+  };
+  const setMargin = (value: Margin) => {
+    setMarginState(value);
+    savePref(MARGIN_KEY, value);
+  };
   const [fill, setFill] = React.useState<Fill>("solid");
   const [customTitle, setCustomTitle] = React.useState("");
 
@@ -105,7 +139,13 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
           ? `Horario · ${singleCalendar.name}`
           : "Horario semanal";
   const title = customTitle.trim() || defaultTitle;
-  const page = PAGE[orientation];
+  const sheet = PAPERS[paper];
+  const marginMm = MARGINS[margin];
+  // Área útil de la hoja (sin márgenes) en la orientación elegida.
+  const page =
+    orientation === "landscape"
+      ? { w: sheet.h - 2 * marginMm, h: sheet.w - 2 * marginMm }
+      : { w: sheet.w - 2 * marginMm, h: sheet.h - 2 * marginMm };
 
   const toggleCalendar = (id: string) =>
     setSelected((prev) => {
@@ -123,12 +163,15 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
     );
 
   return (
-    <div className="min-h-screen bg-zinc-200 text-zinc-900 print:bg-white">
+    <div className="min-h-screen bg-zinc-200 text-zinc-900 print:bg-white print:min-h-0">
       <style>{`
-        @page { size: A4 ${orientation}; margin: 10mm; }
+        /* Margen 0 en la página y el margen real dentro de la hoja: así sale igual
+           aunque en el diálogo se elija «Márgenes: ninguno» o «predeterminados». */
+        @page { size: ${sheet.css} ${orientation}; margin: 0; }
         @media print {
           html, body { background: #fff !important; }
-          .print-sheet { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
+          html, body { margin: 0 !important; padding: 0 !important; }
+          .print-sheet { box-shadow: none !important; margin: 0 !important; }
         }
         .print-sheet, .print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       `}</style>
@@ -267,9 +310,20 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
               <input type="checkbox" checked={includeTasks} onChange={(e) => setIncludeTasks(e.target.checked)} className="accent-violet-600" />
               Incluir tareas
             </label>
+            <select value={paper} onChange={(e) => setPaper(e.target.value as Paper)} aria-label="Papel" className={control}>
+              {(Object.keys(PAPERS) as Paper[]).map((key) => (
+                <option key={key} value={key}>
+                  Papel {PAPERS[key].label}
+                </option>
+              ))}
+            </select>
             <select value={orientation} onChange={(e) => setOrientation(e.target.value as Orientation)} aria-label="Orientación" className={control}>
-              <option value="landscape">A4 horizontal</option>
-              <option value="portrait">A4 vertical</option>
+              <option value="landscape">Horizontal</option>
+              <option value="portrait">Vertical</option>
+            </select>
+            <select value={margin} onChange={(e) => setMargin(e.target.value as Margin)} aria-label="Márgenes" className={control}>
+              <option value="normal">Márgenes normales</option>
+              <option value="amplio">Márgenes amplios</option>
             </select>
             <select value={fill} onChange={(e) => setFill(e.target.value as Fill)} aria-label="Colores" className={control}>
               <option value="solid">Colores llenos</option>
@@ -277,7 +331,9 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
             </select>
           </div>
           <p className="text-xs text-zinc-500">
-            Para el PDF, en el diálogo de impresión elegí «Guardar como PDF» como destino. Si no salen los colores, activá «Gráficos de fondo»; desactivá «Encabezados y pies de página» y dejá la escala en 100 % (Predeterminado).
+            Para el PDF, en el diálogo de impresión elegí «Guardar como PDF». Para papel, elegí acá el mismo tamaño que tiene la impresora (A4 o Carta);
+            si te corta los bordes, pasá a «Márgenes amplios». Si imprimís el PDF ya guardado, usá «Ajustar a la página». Activá «Gráficos de fondo» y
+            desactivá «Encabezados y pies de página».
           </p>
         </div>
       </div>
@@ -287,7 +343,7 @@ function PrintBoard({ data, initialDate, initialMode, initialCalendars, today }:
         <div
           lang="es"
           className="print-sheet mx-auto bg-white shadow-xl"
-          style={{ width: `${page.w}mm`, height: `${page.h - 1}mm`, padding: "10mm", boxSizing: "content-box", overflow: "hidden" }}
+          style={{ width: `${page.w}mm`, height: `${page.h - 1}mm`, padding: `${marginMm}mm`, boxSizing: "content-box", overflow: "hidden" }}
         >
           <header className="flex items-end justify-between border-b-2 border-zinc-900" style={{ height: `${TITLE_MM - 3}mm`, marginBottom: "3mm" }}>
             <h1 className="font-bold first-letter:uppercase" style={{ fontSize: "16pt", lineHeight: 1.1 }}>
@@ -413,7 +469,7 @@ function WeekSheet({
   const rowMm = Math.max(4, (height - HEADER_MM - bannerMm - footMm - 1) / Math.max(1, slots.length));
   const labelMm = slotMode ? 24 : 12;
   const columns = `${labelMm}mm repeat(${days.length}, minmax(0, 1fr))`;
-  const line = "0.2mm solid #d4d4d8";
+  const line = "0.3mm solid #b4b4bc";
   const rootRef = React.useRef<HTMLDivElement>(null);
   useFitText(rootRef);
 
@@ -583,8 +639,8 @@ function MonthSheet({
   }
   const cols = weekdays.length;
   const cellMm = (height - HEADER_MM - 1) / weeks.length;
-  const maxLines = Math.max(1, Math.floor((cellMm - 5) / 3.7));
-  const line = "0.2mm solid #d4d4d8";
+  const maxLines = Math.max(1, Math.floor((cellMm - 5.5) / 4.4));
+  const line = "0.3mm solid #b4b4bc";
   return (
     <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, borderTop: line, borderLeft: line }}>
       {WEEK_DAYS.filter((d) => weekdays.includes(d)).map((d) => (
@@ -600,13 +656,15 @@ function MonthSheet({
         const items = occurrences.filter((o) => o.occurrenceDate <= day && o.occurrenceEndDate >= day);
         const shown = items.slice(0, items.length > maxLines ? maxLines - 1 : maxLines);
         const inMonth = day.startsWith(month);
+        // Con pocas cosas en el día, los títulos largos pasan a dos renglones en vez de cortarse.
+        const wrap = items.length * 2 <= maxLines;
         return (
           <div
             key={day}
             className="overflow-hidden"
             style={{ height: `${cellMm}mm`, borderRight: line, borderBottom: line, padding: "0.8mm", background: inMonth ? "#fff" : "#fafafa" }}
           >
-            <div className={cn("text-right font-semibold", inMonth ? "text-zinc-800" : "text-zinc-400")} style={{ fontSize: pt(8), lineHeight: "3.6mm" }}>
+            <div className={cn("text-right font-semibold", inMonth ? "text-zinc-800" : "text-zinc-400")} style={{ fontSize: pt(9), lineHeight: "4.2mm" }}>
               {Number(day.slice(8, 10))}
               {day.endsWith("-01") && ` ${MONTHS[Number(day.slice(5, 7)) - 1].slice(0, 3)}`}
             </div>
@@ -617,21 +675,23 @@ function MonthSheet({
                 return banner ? (
                   <div
                     key={`${occ.id}-${occ.occurrenceDate}`}
-                    className="truncate rounded-[0.8mm] font-semibold"
-                    style={{ ...blockStyle(hex, fill), fontSize: pt(6.5), lineHeight: "3.3mm", padding: "0 0.8mm" }}
+                    className={cn("rounded-[0.8mm] font-semibold", wrap ? "line-clamp-2" : "truncate")}
+                    style={{ ...blockStyle(hex, fill), fontSize: pt(8), lineHeight: "4mm", padding: "0 0.8mm" }}
                   >
                     {occ.title}
                   </div>
                 ) : (
-                  <div key={`${occ.id}-${occ.occurrenceDate}`} className="flex items-center gap-[0.8mm] truncate" style={{ fontSize: pt(6.5), lineHeight: "3.3mm" }}>
-                    <span className="shrink-0 rounded-full" style={{ width: "1.6mm", height: "1.6mm", background: hex }} />
-                    <span className="font-mono text-zinc-500 shrink-0">{occ.startTime}</span>
-                    <span className={cn("truncate font-medium", occ.completed && "line-through text-zinc-400")}>{occ.title}</span>
+                  <div key={`${occ.id}-${occ.occurrenceDate}`} className="flex items-start gap-[0.8mm] text-zinc-900" style={{ fontSize: pt(8), lineHeight: "4mm" }}>
+                    <span className="shrink-0 rounded-full" style={{ width: "2mm", height: "2mm", marginTop: "1mm", background: hex }} />
+                    <span className="font-mono text-zinc-600 shrink-0">{occ.startTime}</span>
+                    <span className={cn("min-w-0 font-semibold", wrap ? "line-clamp-2" : "truncate", occ.completed && "line-through text-zinc-400")}>
+                      {occ.title}
+                    </span>
                   </div>
                 );
               })}
               {items.length > shown.length && (
-                <div className="text-zinc-500" style={{ fontSize: pt(6.5) }}>
+                <div className="text-zinc-600 font-medium" style={{ fontSize: pt(7.5) }}>
                   +{items.length - shown.length} más
                 </div>
               )}
